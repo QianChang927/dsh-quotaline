@@ -37,6 +37,7 @@ Open **Settings → Quota Line**:
 
 - Refresh interval (10–3600 s).
 - Interface language: follow DSH, or pin Chinese / English for this plugin's strip and settings page.
+- Limit display: show limit chips as used (default) or left; the suffix follows the interface language. Balance chips are unaffected.
 - Built-in template list (read-only).
 - Custom templates: provider id match (supports `*`), display name, method, URL, auth type, credential refs, balance path, currency. **Test** runs a one-off request through the Host and shows the extracted values plus a short response sample.
 

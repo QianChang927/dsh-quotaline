@@ -43,6 +43,12 @@ window.__ModuleLoader__.load({
         languageAuto: '跟随 DSH',
         languageZh: '中文',
         languageEn: 'English',
+        limitMode: '限额显示',
+        limitModeHint: '控制 5h / 周 / 月限额显示已用还是剩余；余额气泡不受影响。',
+        limitModeUsed: '已用',
+        limitModeLeft: '剩余',
+        usedSuffix: '已用',
+        leftSuffix: '剩余',
         builtinsTitle: '内置模板',
         builtinsHint: '内置模板随插件提供；自定义模板按供应商 id 匹配，同分时优先自定义。',
         customTitle: '自定义查询',
@@ -103,6 +109,12 @@ window.__ModuleLoader__.load({
         languageAuto: 'Follow DSH',
         languageZh: '中文',
         languageEn: 'English',
+        limitMode: 'Limit display',
+        limitModeHint: 'Show limit chips as used or left. Balance chips are unaffected.',
+        limitModeUsed: 'Used',
+        limitModeLeft: 'Left',
+        usedSuffix: 'used',
+        leftSuffix: 'left',
         builtinsTitle: 'Built-in templates',
         builtinsHint: 'Bundled templates. Custom templates win ties by provider id.',
         customTitle: 'Custom queries',
@@ -450,12 +462,15 @@ window.__ModuleLoader__.load({
       const ctx = props.ctx
       const sessionId = props.sessionId
       const [language, setLanguage] = useState('auto')
+      const [limitMode, setLimitMode] = useState('used')
       useEffect(() => {
         let disposed = false
         const load = () => {
           api('settings')
             .then((payload) => {
-              if (!disposed && payload && typeof payload.language === 'string') setLanguage(payload.language)
+              if (disposed || !payload) return
+              if (typeof payload.language === 'string') setLanguage(payload.language)
+              setLimitMode(payload.limitMode === 'left' ? 'left' : 'used')
             })
             .catch(() => {})
         }
@@ -528,13 +543,16 @@ window.__ModuleLoader__.load({
           if (!isRenderableItem(item)) return
           const currency = item && item.currency
           const percent = item && typeof item.percent === 'number' ? item.percent : null
+          const suffix = limitMode === 'left' ? t('leftSuffix') : t('usedSuffix')
+          const shownPercent =
+            percent !== null && limitMode === 'left' ? Math.max(0, Math.min(100, 100 - percent)) : percent
           const tone = itemTone(item)
           content.push(
             h(
               'span',
               { key: `item-${index}`, style: chipStyle(tone), 'data-quotaline-tone': tone },
               h('span', { style: mutedStyle }, translateLabel(item.label, t)),
-              h('span', null, percent !== null ? formatPercent(percent) : formatAmount(item.amount, currency)),
+              h('span', null, percent !== null ? `${formatPercent(shownPercent)} ${suffix}` : formatAmount(item.amount, currency)),
             ),
           )
         })
@@ -770,6 +788,7 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState('')
       const [refreshSeconds, setRefreshSeconds] = useState(60)
       const [language, setLanguage] = useState('auto')
+      const [limitMode, setLimitMode] = useState('used')
       const [builtins, setBuiltins] = useState([])
       const [drafts, setDrafts] = useState([])
       const [saving, setSaving] = useState(false)
@@ -786,6 +805,7 @@ window.__ModuleLoader__.load({
             if (disposed || !payload) return
             setRefreshSeconds(payload.refreshSeconds || 60)
             setLanguage(payload.language === 'zh' || payload.language === 'en' ? payload.language : 'auto')
+            setLimitMode(payload.limitMode === 'left' ? 'left' : 'used')
             setBuiltins(Array.isArray(payload.builtins) ? payload.builtins : [])
             const providers = payload.providers && typeof payload.providers === 'object' ? payload.providers : {}
             setDrafts(Object.keys(providers).map((id) => draftFromEntry(id, providers[id])))
@@ -866,11 +886,12 @@ window.__ModuleLoader__.load({
           const payload = await api('settings', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ refreshSeconds: Number(refreshSeconds) || 60, language, providers }),
+            body: JSON.stringify({ refreshSeconds: Number(refreshSeconds) || 60, language, limitMode, providers }),
           })
           if (payload && payload.settings) {
             setRefreshSeconds(payload.settings.refreshSeconds || 60)
             if (typeof payload.settings.language === 'string') setLanguage(payload.settings.language)
+            setLimitMode(payload.settings.limitMode === 'left' ? 'left' : 'used')
           }
           setSavedAt(Date.now())
           window.dispatchEvent(new CustomEvent(SETTINGS_EVENT))
@@ -879,7 +900,7 @@ window.__ModuleLoader__.load({
         } finally {
           setSaving(false)
         }
-      }, [drafts, refreshSeconds, language])
+      }, [drafts, refreshSeconds, language, limitMode])
 
       if (loading) {
         return h('div', { style: { padding: '12px', color: 'var(--dsw-alias-label-secondary)', fontSize: '12px' } }, '…')
@@ -920,6 +941,20 @@ window.__ModuleLoader__.load({
               h('option', { value: 'auto' }, t('languageAuto')),
               h('option', { value: 'zh' }, t('languageZh')),
               h('option', { value: 'en' }, t('languageEn')),
+            ),
+          ),
+          h(
+            Labeled,
+            { label: t('limitMode'), hint: t('limitModeHint') },
+            h(
+              'select',
+              {
+                style: { ...inputStyle, width: '200px' },
+                value: limitMode,
+                onChange: (event) => setLimitMode(event.target.value),
+              },
+              h('option', { value: 'used' }, t('limitModeUsed')),
+              h('option', { value: 'left' }, t('limitModeLeft')),
             ),
           ),
         ),

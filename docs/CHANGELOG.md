@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
+### 中文
+
+新增限额显示方式设置：限额气泡可以显示“已用”，也可以切换为“剩余”；气泡文本改为
+百分比加后缀，后缀随界面语言显示。
+
+#### 新增
+
+- 设置新增 **限额显示**：`已用`（默认）或 `剩余`。余额气泡不参与换算。
+- 限额气泡文本由 `{percent}%` 改为 `{percent}% {suffix}`：中文显示 `已用` / `剩余`，
+  英文显示 `used` / `left`；选择 `剩余` 时数值为 `100 − 已用`。
+- 设置文件新增 `limitMode` 字段（`used` / `left`）；读取旧配置时自动补为 `used`。
+
+### English
+
+Adds a limit display setting: limit chips can show usage as used or left, and the
+chip text now appends the mode suffix after the percentage.
+
+#### Added
+
+- New **Limit display** setting: `Used` (default) or `Left`. Balance chips are not
+  converted.
+- Limit chip text changed from `{percent}%` to `{percent}% {suffix}`: Chinese shows
+  `已用` / `剩余`, English shows `used` / `left`; choosing `Left` displays
+  `100 − used`.
+- New `limitMode` field (`used` / `left`) in the settings file; older settings are
+  upgraded to `used` automatically.
+
 ## [0.1.0] - 2026-11-16
 
 ### 中文
@@ -82,5 +111,6 @@ Credentials are read locally only — never uploaded, rewritten, or requested.
 - English and Simplified Chinese UI strings, plugin metadata, and documentation
   with light/dark previews.
 
-[Unreleased]: https://github.com/QianChang927/dsh-quotaline/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/QianChang927/dsh-quotaline/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.0
 [0.1.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.1.0

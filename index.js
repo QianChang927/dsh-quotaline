@@ -10,7 +10,7 @@ import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const PACKAGE_VERSION = '0.1.0'
+const PACKAGE_VERSION = '0.2.0'
 const API = '/dsh-quotaline/api/'
 const SETTINGS_VERSION = 1
 const CACHE_MS = 30_000
@@ -136,7 +136,14 @@ export function settingsPath(env = {}, homeDir = homedir()) {
 }
 
 export function defaultSettings() {
-  return { version: SETTINGS_VERSION, refreshSeconds: 60, language: 'auto', enabled: true, providers: {} }
+  return {
+    version: SETTINGS_VERSION,
+    refreshSeconds: 60,
+    language: 'auto',
+    limitMode: 'used',
+    enabled: true,
+    providers: {},
+  }
 }
 
 export class QuotaError extends Error {
@@ -539,6 +546,9 @@ export function sanitizeSettings(input) {
   settings.refreshSeconds = normalizeRefreshSeconds(input.refreshSeconds)
   if (typeof input.language === 'string' && ['auto', 'zh', 'en'].includes(input.language)) {
     settings.language = input.language
+  }
+  if (input.limitMode === 'used' || input.limitMode === 'left') {
+    settings.limitMode = input.limitMode
   }
   if (typeof input.enabled === 'boolean') settings.enabled = input.enabled
   if (isPlainObject(input.providers)) {
@@ -973,6 +983,7 @@ export function apply(ctx) {
       version: SETTINGS_VERSION,
       refreshSeconds: settings.refreshSeconds,
       language: settings.language,
+      limitMode: settings.limitMode,
       enabled: settings.enabled,
       builtins: BUILTIN_TEMPLATES.map((template) => ({ ...template })),
       providers: settings.providers,

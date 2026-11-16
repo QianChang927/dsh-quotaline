@@ -18,16 +18,16 @@
   <text x="68" y="62.5" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600" fill="#F9FAFB">Kimi Code</text>
 
   <!-- 5h window: info (sky blue) tone -->
-  <rect x="144" y="46" width="64" height="24" rx="12" fill="#283D48" stroke="#2A5D76"/>
-  <text x="176" y="62.5" text-anchor="middle" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13"><tspan fill="#CFD3D6">5h </tspan><tspan fill="#F9FAFB">42%</tspan></text>
+  <rect x="144" y="46" width="82" height="24" rx="12" fill="#283D48" stroke="#2A5D76"/>
+  <text x="185" y="62.5" text-anchor="middle" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13"><tspan fill="#CFD3D6">5h </tspan><tspan fill="#F9FAFB">42% used</tspan></text>
 
   <!-- Weekly window: success tone (same as Bonus) -->
-  <rect x="216" y="46" width="92" height="24" rx="12" fill="#2B4133" stroke="#316845"/>
-  <text x="262" y="62.5" text-anchor="middle" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13"><tspan fill="#CFD3D6">Weekly </tspan><tspan fill="#F9FAFB">78%</tspan></text>
+  <rect x="234" y="46" width="112" height="24" rx="12" fill="#2B4133" stroke="#316845"/>
+  <text x="290" y="62.5" text-anchor="middle" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13"><tspan fill="#CFD3D6">Weekly </tspan><tspan fill="#F9FAFB">78% used</tspan></text>
 
   <!-- Monthly window: warning tone -->
-  <rect x="316" y="46" width="100" height="24" rx="12" fill="#483C27" stroke="#785B29"/>
-  <text x="366" y="62.5" text-anchor="middle" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13"><tspan fill="#CFD3D6">Monthly </tspan><tspan fill="#F9FAFB">92%</tspan></text>
+  <rect x="354" y="46" width="118" height="24" rx="12" fill="#483C27" stroke="#785B29"/>
+  <text x="413" y="62.5" text-anchor="middle" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="13"><tspan fill="#CFD3D6">Monthly </tspan><tspan fill="#F9FAFB">92% used</tspan></text>
 
   <text x="840" y="62.5" text-anchor="end" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="11" fill="#CFD3D6">updated 16:47:05</text>
 

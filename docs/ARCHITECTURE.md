@@ -147,13 +147,14 @@ GET 返回：
   "version": 1,
   "refreshSeconds": 60,
   "language": "auto",
+  "limitMode": "used",
   "enabled": true,
   "builtins": [ ... ],
   "providers": { "<id>": { "enabled": true, "template": { ... } } }
 }
 ```
 
-POST 接受 `{ refreshSeconds, language, enabled, providers }`；`language` 只允许 `auto | zh | en`；`providers.<id>` 必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`。校验失败返回 400 + `{ error: 'invalid-settings', message }`；非 JSON 返回 415。
+POST 接受 `{ refreshSeconds, language, limitMode, enabled, providers }`；`language` 只允许 `auto | zh | en`，`limitMode` 只允许 `used | left`（缺省 `used`）；`providers.<id>` 必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`。校验失败返回 400 + `{ error: 'invalid-settings', message }`；非 JSON 返回 415。
 
 ### 5.3 `POST /probe`
 
@@ -245,7 +246,7 @@ baseURL：
 
 - 路径：`settingsPath(process.env)`，默认 `<DSH_HOME>/dsh-quotaline/settings.json`；`DSH_HOME` 未设置时回退 `os.homedir()/.dsh`，不出现硬编码盘符。
 - 写入：先写临时文件再 rename；Windows 上 rename 被占用时先 unlink 再重试。
-- 内容始终由 `sanitizeSettings()` 归一化后落盘；缺字段回退默认值；`refreshSeconds` 夹在 10–3600 秒。
+- 内容始终由 `sanitizeSettings()` 归一化后落盘；缺字段回退默认值；`refreshSeconds` 夹在 10–3600 秒；`limitMode` 仅接受 `used | left`。
 - 读取失败或 JSON 损坏时回退默认设置，不阻塞条带。
 
 ## 8. 安全与隐私
@@ -272,7 +273,7 @@ baseURL：
 - 渲染前用 `isRenderableItem()` 过滤：限额项必须有有限数值的 `percent`，余额项必须有非空 `amount`；取不到的 5h / 周 / 月窗口直接不显示，不占位。
 - 赠送余额常驻显示，为 0 也保留（不再有 `isZeroBonus`）。
 - 百分比数值统一使用主文字色，不再按阈值改色；颜色语义由气泡底色表达。
-- i18n：`language` 支持 `auto | zh | en`；文案集中在 `MESSAGES`，条带与设置页共享。
+- i18n：`language` 支持 `auto | zh | en`；`limitMode` 支持 `used | left`，条带按语言拼接 `已用`/`剩余` 或 `used`/`left` 后缀；文案集中在 `MESSAGES`，条带与设置页共享。
 - 不使用 `document.body`、不读取其他插件的 DOM、不 import Harness Client 包。
 
 ## 10. 测试

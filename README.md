@@ -73,8 +73,9 @@ Open **Settings → Quota Line**:
 
 1. **Refresh interval** — 10 to 3600 seconds. Switching models always refreshes immediately.
 2. **Interface language** — follow DSH, or pin the strip and settings page to Chinese or English.
-3. **Built-in templates** — read-only list showing each id, display name, and whether it is experimental.
-4. **Custom templates** — match a provider id (wildcards allowed), choose the display name, method, URL, auth style, credential references, amount path, currency path, and enable it. **Test** performs one real request from the Host and shows the extracted values alongside a response sample.
+3. **Limit display** — show limit chips as `used` (default) or `left`; the suffix follows the interface language (`used`/`left` or `已用`/`剩余`). Balance chips are unaffected.
+4. **Built-in templates** — read-only list showing each id, display name, and whether it is experimental.
+5. **Custom templates** — match a provider id (wildcards allowed), choose the display name, method, URL, auth style, credential references, amount path, currency path, and enable it. **Test** performs one real request from the Host and shows the extracted values alongside a response sample.
 
 Example paths:
 
