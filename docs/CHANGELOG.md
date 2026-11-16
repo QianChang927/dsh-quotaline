@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-16
+
+### 中文
+
+调整插件管理页里的组件标识：额度条组件现在显示为 `quota-line`，不再与包名
+`dsh-quotaline` 重复。
+
+#### 变更
+
+- `cordis.patch.yml` 中的组件 id 由 `dsh-quotaline` 改为 `quota-line`；模块名仍是
+  `dsh-quotaline`。
+
+### English
+
+Adjusts the component identity in the plugin manager: the strip component now reads
+`quota-line` instead of repeating the package name `dsh-quotaline`.
+
+#### Changed
+
+- The component id in `cordis.patch.yml` is now `quota-line`; the module name remains
+  `dsh-quotaline`.
+
 ## [0.2.0] - 2026-11-16
 
 ### 中文
