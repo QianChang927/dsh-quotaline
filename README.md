@@ -43,7 +43,8 @@ Balance and 5h windows use sky blue, bonus and weekly windows use green, monthly
 | **GLM Coding Plan** | `GET {origin}/api/monitor/usage/quota/limit`; maps `unit=3` to hours, `unit=6` to weeks, and `TIME_LIMIT` to monthly. |
 | **Moonshot / Zhipu API** | Standard balance endpoints, with automatic fallback when a coding-plan key is rejected by a balance endpoint. |
 | **Custom queries** | Method, URL (`{baseURL}`/`{origin}` placeholders), auth style, credential references, and JSON extraction paths (with `[*]` expansion). |
-| **Settings page** | `Settings → Quota Line`: refresh interval, interface language, read-only built-in template list, custom template editor, and a **Test** button. |
+| **Settings page** | `Settings → Quota Line`: refresh interval, live refresh, interface language, read-only built-in template list, custom template editor, and a **Test** button. |
+| **Live refresh** | On by default: refreshes after each completed model response while the agent works, delivered over a same-origin event stream; falls back to polling when the stream is unavailable. Ticks are filtered by provider, so subagents on another provider never touch this strip. |
 | **Privacy** | Keys stay in the Host process; the browser only receives labels, amounts, currencies, percentages, and error messages. No telemetry. |
 
 ### Supported providers
@@ -71,11 +72,12 @@ Requires DeepSeek Harness **0.2.2-rc.3 or newer**.
 
 Open **Settings → Quota Line**:
 
-1. **Refresh interval** — 10 to 3600 seconds. Switching models always refreshes immediately.
-2. **Interface language** — follow DSH, or pin the strip and settings page to Chinese or English.
-3. **Limit display** — show limit chips as `used` (default) or `left`; the suffix follows the interface language (`used`/`left` or `已用`/`剩余`). Balance chips are unaffected.
-4. **Built-in templates** — read-only list showing each id, display name, and whether it is experimental.
-5. **Custom templates** — match a provider id (wildcards allowed), choose the display name, method, URL, auth style, credential references, amount path, currency path, and enable it. **Test** performs one real request from the Host and shows the extracted values alongside a response sample.
+1. **Refresh interval** — idle refresh interval, 10 to 3600 seconds. Switching models always refreshes immediately.
+2. **Live refresh during runs** — on by default. The strip refreshes after each model response while the agent works; events are throttled to one refresh every 8 seconds. If the event stream is unavailable it falls back to polling (60s while the stream is connected but quiet, 15s when it is down). Turn it off to refresh only on the idle interval (plus manual, model-switch, and visibility triggers).
+3. **Interface language** — follow DSH, or pin the strip and settings page to Chinese or English.
+4. **Limit display** — show limit chips as `used` (default) or `left`; the suffix follows the interface language (`used`/`left` or `已用`/`剩余`). Balance chips are unaffected.
+5. **Built-in templates** — read-only list showing each id, display name, and whether it is experimental.
+6. **Custom templates** — match a provider id (wildcards allowed), choose the display name, method, URL, auth style, credential references, amount path, currency path, and enable it. **Test** performs one real request from the Host and shows the extracted values alongside a response sample.
 
 Example paths:
 

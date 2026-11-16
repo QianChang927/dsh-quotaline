@@ -20,7 +20,7 @@ A full-width strip above the composer that shows the current model's balance or 
 - **GLM Coding Plan** — `GET {origin}/api/monitor/usage/quota/limit`. `unit=3` rows are the 5-hour window, `unit=6` the weekly window, and `TIME_LIMIT` the monthly counter. When a coding-plan endpoint rejects a standard API key, the Host falls back to the balance endpoint automatically.
 - **Custom providers** — declarative HTTP templates you add in *Settings → Quota Line*: method, URL with `{baseURL}`, auth type, credential refs, and JSON extraction paths.
 
-The strip follows the model selector of the current session and refreshes immediately when the provider/model changes. Every `refreshSeconds` it polls again while the page is visible.
+The strip follows the model selector of the current session and refreshes immediately when the provider/model changes. Every `refreshSeconds` it polls again while the page is visible. With **live refresh** enabled (the default), the Host announces each completed model response over a same-origin event stream, and the strip refreshes after it — at most once every 8 seconds, with a trailing refresh if events arrive in a burst. Only ticks for the current provider are consumed, so a subagent running on another provider never refreshes this strip. If the stream is unavailable it falls back to polling: 60 seconds while connected but quiet (for example during a long tool call), 15 seconds when the stream is down.
 
 Chips follow the active light/dark theme: balances and the 5h window use a sky-blue tint, bonus and the weekly window use the success tint, the monthly window uses the warn tint, and Refresh is a pale-red pill with the same height and type size as the value chips. The bonus chip stays visible even at zero; a usage window that cannot be read is omitted instead of showing a placeholder.
 
@@ -35,7 +35,8 @@ Chips follow the active light/dark theme: balances and the 5h window use a sky-b
 
 Open **Settings → Quota Line**:
 
-- Refresh interval (10–3600 s).
+- Refresh interval: idle cadence, 10–3600 s.
+- Live refresh during runs (default on): refresh after each model response over a same-origin event stream, throttled to one refresh every 8 seconds, with provider-filtered ticks and polling fallbacks; turn it off to use the idle interval only.
 - Interface language: follow DSH, or pin Chinese / English for this plugin's strip and settings page.
 - Limit display: show limit chips as used (default) or left; the suffix follows the interface language. Balance chips are unaffected.
 - Built-in template list (read-only).

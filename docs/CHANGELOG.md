@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.3.0] - 2026-11-16
+
+### 中文
+
+新增“任务运行时自动刷新”：Agent 每次模型响应完成后，Host 通过同源 SSE 通道
+推送一个匿名 tick，额度条据此刷新（最少间隔 8 秒）；tick 带 provider 身份，
+子代理使用不同 provider 时不会刷新主条带。事件流不可用时回退轮询（在线 60 秒、
+离线 15 秒），该行为可在设置页关闭。
+
+#### 新增
+
+- 设置项 `liveRefresh`（默认开启）；旧版设置文件缺少该字段时按开启处理。
+- Host 订阅 `session/event` 的 `assistant/message`，按 provider 1 秒合并后通过 `GET /dsh-quotaline/api/activity`（SSE）推送 `{provider, model, at}`；不含会话 id、余额或密钥。
+- 客户端按 provider 过滤 tick，8 秒节流并尾随补刷；SSE 断线按 1/2/5/10/30 秒退避重连。
+- 运行中兜底：事件流在线但长时间无事件 60 秒、事件流断开 15 秒；关闭开关后只按空闲间隔。
+- 设置页新增“任务运行时自动刷新 / Live refresh during runs”开关，中英文案齐全。
+
+### English
+
+Adds live refresh during runs: after each completed model response the Host
+announces an anonymous tick over a same-origin SSE stream and the strip
+refreshes from it (at most once every 8 seconds). Ticks carry the provider
+identity, so a subagent running on a different provider never refreshes the
+main strip. When the stream is unavailable the client falls back to polling
+(60 s while connected but quiet, 15 s while down). The behavior can be turned
+off in Settings.
+
+#### Added
+
+- A `liveRefresh` setting (enabled by default); older settings files without the
+  field are treated as enabled.
+- The Host listens to `session/event` `assistant/message`, coalesces ticks per
+  provider for one second, and publishes `{provider, model, at}` over
+  `GET /dsh-quotaline/api/activity`; no session id, balance, or credential is sent.
+- The client filters ticks by provider, throttles to one refresh every 8 seconds
+  with a trailing refresh, and reconnects the stream with 1/2/5/10/30 s backoff.
+- Run-time fallbacks: 60 seconds while the stream is connected but quiet, 15
+  seconds while it is down; turning the setting off leaves only the idle interval.
+- A **Live refresh during runs** toggle on the settings page, with English and
+  Simplified Chinese copy.
+
 ## [0.2.2] - 2026-11-16
 
 ### 中文
@@ -155,6 +196,7 @@ Credentials are read locally only — never uploaded, rewritten, or requested.
 - English and Simplified Chinese UI strings, plugin metadata, and documentation
   with light/dark previews.
 
+[0.3.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.3.0
 [0.2.2]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.2
 [0.2.1]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.1
 [0.2.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.0

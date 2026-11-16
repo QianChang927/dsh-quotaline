@@ -71,7 +71,7 @@ dsh-quotaline/
 ├─ README.md
 └─ LICENSE
 
-本地开发专用（git-ignored，不随包发布）：test/（node:test，28 个用例）、AGENTS.md、CLAUDE.md、PUBLISHING.md。
+本地开发专用（git-ignored，不随包发布）：test/（node:test，37 个用例，含活动 tick/合并器）、AGENTS.md、CLAUDE.md、PUBLISHING.md。
 ```
 
 `package.json` 关键字段：
@@ -88,7 +88,9 @@ dsh-quotaline/
 2. 读取 `ModelSelectionProjection.next`；新会话为空时回退到 `ctx.remote.session.modelCatalog().default`。
 3. provider 或 model 变化时：中止上一条请求（`AbortController`），立即 `GET /status?provider=&model=&refresh=1`。
 4. 定时器按 `refreshSeconds` 轮询；`document.visibilityState !== 'visible'` 时暂停，重新可见时补一次。
-5. 设置页保存后派发 `window` 事件 `dsh-quotaline:settings-changed`，条带重读 settings 并刷新。
+5. `useSessionIsRunning()` 订阅 `binding.session` 的 `SessionSnapshot`：`running`、`pendingSubmissions` 或 `awaitingFirstTurn` 任一为真即视为运行中。它只用于兜底：开启 `liveRefresh` 且运行中时，轮询间隔取 `min(refreshSeconds, 在线 60 秒 / 离线 15 秒)`，不再做固定 15 秒快轮询；运行开始与结束各立即刷新一次。
+6. 事件刷新：浏览器 `EventSource` 连接 `GET /dsh-quotaline/api/activity`；Host 监听 `session/event` 的 `assistant/message`，读取 `message.source.provider/model` 生成匿名 tick。客户端只接受 `provider` 与当前 selection 相同的 tick，8 秒节流（尾随补一次；在途请求合并、不中断），不同 provider 的 tick 直接丢弃。
+7. 设置页保存后派发 `window` 事件 `dsh-quotaline:settings-changed`，条带重读 settings 并按新的 `liveRefresh` / `refreshSeconds` 刷新。
 
 ### 4.2 状态计算（Host）
 
@@ -97,6 +99,7 @@ dsh-quotaline/
 3. HTTP 模板：按顺序解析 baseURL 与凭证；自定义模板独占，内置模板最多尝试 3 个候选。
 4. 结果归一化为 `items[]` 并写入 30 秒缓存（按 provider 维度）；`refresh=1` 绕过缓存。
 5. `credentials/record-updated`、`credentials/reference-updated`、`llm/adapters-updated`、`llm/models-updated` 触发 `cache.clear()`。
+6. `session/event` 的 `assistant/message` 生成 tick，经 `createTickCoalescer()` 按 provider 1 秒合并后，写入 `/activity` 的 SSE 连接；异常绝不向事件总线抛出。
 
 ## 5. HTTP 契约
 
@@ -148,13 +151,14 @@ GET 返回：
   "refreshSeconds": 60,
   "language": "auto",
   "limitMode": "used",
+  "liveRefresh": true,
   "enabled": true,
   "builtins": [ ... ],
   "providers": { "<id>": { "enabled": true, "template": { ... } } }
 }
 ```
 
-POST 接受 `{ refreshSeconds, language, limitMode, enabled, providers }`；`language` 只允许 `auto | zh | en`，`limitMode` 只允许 `used | left`（缺省 `used`）；`providers.<id>` 必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`。校验失败返回 400 + `{ error: 'invalid-settings', message }`；非 JSON 返回 415。
+POST 接受 `{ refreshSeconds, language, limitMode, liveRefresh, enabled, providers }`；`language` 只允许 `auto | zh | en`，`limitMode` 只允许 `used | left`（缺省 `used`），`liveRefresh` 只允许 boolean（缺省 `true`）；`providers.<id>` 必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`。校验失败返回 400 + `{ error: 'invalid-settings', message }`；非 JSON 返回 415。
 
 ### 5.3 `POST /probe`
 
@@ -165,6 +169,18 @@ POST 接受 `{ refreshSeconds, language, limitMode, enabled, providers }`；`lan
 ```
 
 失败时返回 `status: "error"`、`code`、`httpStatus`、`message`、`sample`；找不到 key 时返回 `status: "no-credential"`。probe 不落盘，仅用于验证模板。
+
+### 5.4 `GET /activity`（SSE）
+
+同源 `EventSource` 长连接。Host 在每次模型响应落库后推送匿名 tick：
+
+```text
+data: {"provider":"deepseek-account","model":"deepseek-flash","at":"2026-11-16T12:00:00.000Z"}
+```
+
+- 不含 sessionId、消息内容、余额或凭证；同一 provider 1 秒内只推一次。
+- 首个连接启动 25 秒心跳（`: ping` 注释行）；单机最多 8 条连接（超出返回 429）；Origin 存在时校验。
+- 客户端断线按 1/2/5/10/30 秒退避重连；`EventSource` 不可用时运行中回退到 15 秒轮询。
 
 ## 6. 模板模型
 
@@ -246,7 +262,7 @@ baseURL：
 
 - 路径：`settingsPath(process.env)`，默认 `<DSH_HOME>/dsh-quotaline/settings.json`；`DSH_HOME` 未设置时回退 `os.homedir()/.dsh`，不出现硬编码盘符。
 - 写入：先写临时文件再 rename；Windows 上 rename 被占用时先 unlink 再重试。
-- 内容始终由 `sanitizeSettings()` 归一化后落盘；缺字段回退默认值；`refreshSeconds` 夹在 10–3600 秒；`limitMode` 仅接受 `used | left`。
+- 内容始终由 `sanitizeSettings()` 归一化后落盘；缺字段回退默认值；`refreshSeconds` 夹在 10–3600 秒；`limitMode` 仅接受 `used | left`；`liveRefresh` 仅接受 boolean，缺省 `true`。
 - 读取失败或 JSON 损坏时回退默认设置，不阻塞条带。
 
 ## 8. 安全与隐私
@@ -273,7 +289,7 @@ baseURL：
 - 渲染前用 `isRenderableItem()` 过滤：限额项必须有有限数值的 `percent`，余额项必须有非空 `amount`；取不到的 5h / 周 / 月窗口直接不显示，不占位。
 - 赠送余额常驻显示，为 0 也保留（不再有 `isZeroBonus`）。
 - 百分比数值统一使用主文字色，不再按阈值改色；颜色语义由气泡底色表达。
-- i18n：`language` 支持 `auto | zh | en`；`limitMode` 支持 `used | left`，条带按语言拼接 `已用`/`剩余` 或 `used`/`left` 后缀；文案集中在 `MESSAGES`，条带与设置页共享。
+- i18n：`language` 支持 `auto | zh | en`；`limitMode` 支持 `used | left`，条带按语言拼接 `已用`/`剩余` 或 `used`/`left` 后缀；`liveRefresh` 控制事件刷新与兜底轮询；文案集中在 `MESSAGES`，条带与设置页共享。
 - 不使用 `document.body`、不读取其他插件的 DOM、不 import Harness Client 包。
 
 ## 10. 测试
@@ -283,8 +299,9 @@ baseURL：
 - `test/paths.test.mjs`：路径展开、畸形路径、跨平台 `settingsPath`。
 - `test/extract.test.mjs`：金额提取、币种、auth 头。
 - `test/match.test.mjs`：模板匹配优先级、内置模板选择、语言校验。
+- `test/activity.test.mjs`：`tickFromSessionEvent()` 的身份提取与拒绝路径、`createTickCoalescer()` 的按 provider 合并与重置。
 - `test/quota-windows.test.mjs`：Kimi 新旧响应、GLM 时间窗、回退顺序。
-- 手工验收：模型切换 1 秒内刷新、Account/Official 显示正确、设置页增删改 + 测试按钮、刷新间隔生效、`.credentials.yaml` 的 SHA256 与 mtime 不变。
+- 手工验收：模型切换 1 秒内刷新、Account/Official 显示正确、设置页增删改 + 测试按钮、刷新间隔生效、运行中每次模型响应后刷新、关闭 liveRefresh 后不再事件刷新、SSE 断线时运行中回退 15 秒、`.credentials.yaml` 的 SHA256 与 mtime 不变。
 
 ## 11. 新增供应商模板
 

@@ -10,12 +10,15 @@ import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const PACKAGE_VERSION = '0.2.2'
+const PACKAGE_VERSION = '0.3.0'
 const API = '/dsh-quotaline/api/'
 const SETTINGS_VERSION = 1
 const CACHE_MS = 30_000
 const MAX_BODY_BYTES = 512 * 1024
 const DEFAULT_TIMEOUT_MS = 10_000
+const ACTIVITY_MAX_CLIENTS = 8
+const ACTIVITY_HEARTBEAT_MS = 25_000
+const TICK_COALESCE_MS = 1_000
 
 export const inject = [
   'webServer',
@@ -141,6 +144,7 @@ export function defaultSettings() {
     refreshSeconds: 60,
     language: 'auto',
     limitMode: 'used',
+    liveRefresh: true,
     enabled: true,
     providers: {},
   }
@@ -550,6 +554,7 @@ export function sanitizeSettings(input) {
   if (input.limitMode === 'used' || input.limitMode === 'left') {
     settings.limitMode = input.limitMode
   }
+  if (typeof input.liveRefresh === 'boolean') settings.liveRefresh = input.liveRefresh
   if (typeof input.enabled === 'boolean') settings.enabled = input.enabled
   if (isPlainObject(input.providers)) {
     for (const [id, entry] of Object.entries(input.providers)) {
@@ -598,6 +603,51 @@ function readJSON(req) {
       }
     })
   })
+}
+
+/**
+ * Extract the model identity from a committed `assistant/message` session event.
+ * Returns null for every other event, for messages without a model source, and
+ * for malformed payloads. The returned tick is anonymous: it carries no session
+ * id, no content, and no credentials.
+ */
+export function tickFromSessionEvent(event) {
+  if (!event || typeof event !== 'object' || event.type !== 'assistant/message') return null
+  const message = event.data && event.data.message
+  const source = message && message.source
+  if (!source || source.kind !== 'model') return null
+  if (typeof source.provider !== 'string' || source.provider === '') return null
+  return {
+    provider: source.provider,
+    model: typeof source.model === 'string' ? source.model : '',
+    at: new Date().toISOString(),
+  }
+}
+
+/**
+ * Collapse bursts of activity ticks per provider. Multi-step turns and parallel
+ * subagents can append many assistant messages within a second; subscribers only
+ * need to know that a provider produced a response, not each individual step.
+ */
+export function createTickCoalescer(options = {}) {
+  const minIntervalMs = Number.isFinite(options.minIntervalMs)
+    ? Math.max(0, options.minIntervalMs)
+    : TICK_COALESCE_MS
+  const sentAt = new Map()
+  return {
+    accept(tick, now = Date.now()) {
+      if (!tick || typeof tick !== 'object' || typeof tick.provider !== 'string' || tick.provider === '') {
+        return false
+      }
+      const last = sentAt.get(tick.provider)
+      if (last !== undefined && now - last < minIntervalMs) return false
+      sentAt.set(tick.provider, now)
+      return true
+    },
+    reset() {
+      sentAt.clear()
+    },
+  }
 }
 
 export function apply(ctx) {
@@ -984,6 +1034,7 @@ export function apply(ctx) {
       refreshSeconds: settings.refreshSeconds,
       language: settings.language,
       limitMode: settings.limitMode,
+      liveRefresh: settings.liveRefresh,
       enabled: settings.enabled,
       builtins: BUILTIN_TEMPLATES.map((template) => ({ ...template })),
       providers: settings.providers,
@@ -1097,6 +1148,77 @@ export function apply(ctx) {
     }
   }
 
+  const activityClients = new Set()
+  const activityCoalescer = createTickCoalescer({ minIntervalMs: TICK_COALESCE_MS })
+  let activityHeartbeat
+
+  function dropActivityClient(res) {
+    activityClients.delete(res)
+    try {
+      res.end()
+    } catch {
+      /* already closed */
+    }
+  }
+
+  function publishActivity(tick) {
+    if (!tick || activityClients.size === 0) return
+    if (!activityCoalescer.accept(tick)) return
+    const line = `data: ${JSON.stringify(tick)}\n\n`
+    for (const client of [...activityClients]) {
+      try {
+        client.write(line)
+      } catch {
+        dropActivityClient(client)
+      }
+    }
+  }
+
+  function ensureActivityHeartbeat() {
+    if (activityHeartbeat !== undefined) return
+    activityHeartbeat = setInterval(() => {
+      if (activityClients.size === 0) {
+        clearInterval(activityHeartbeat)
+        activityHeartbeat = undefined
+        return
+      }
+      for (const client of [...activityClients]) {
+        try {
+          client.write(': ping\n\n')
+        } catch {
+          dropActivityClient(client)
+        }
+      }
+    }, ACTIVITY_HEARTBEAT_MS)
+    activityHeartbeat.unref?.()
+  }
+
+  function handleActivity(req, res) {
+    if (req.method !== 'GET') return json(res, 405, { error: 'method-not-allowed' })
+    if (!checkOrigin(req)) return json(res, 403, { error: 'origin-not-allowed' })
+    if (activityClients.size >= ACTIVITY_MAX_CLIENTS) {
+      return json(res, 429, { error: 'too-many-connections' })
+    }
+    res.statusCode = 200
+    res.setHeader('content-type', 'text/event-stream; charset=utf-8')
+    res.setHeader('cache-control', 'no-cache, no-transform')
+    res.setHeader('connection', 'keep-alive')
+    res.setHeader('x-accel-buffering', 'no')
+    res.flushHeaders?.()
+    res.write(': connected\n\n')
+    activityClients.add(res)
+    const cleanup = () => {
+      activityClients.delete(res)
+      if (activityClients.size === 0 && activityHeartbeat !== undefined) {
+        clearInterval(activityHeartbeat)
+        activityHeartbeat = undefined
+      }
+    }
+    res.on('close', cleanup)
+    res.on('error', cleanup)
+    ensureActivityHeartbeat()
+  }
+
   const invalidate = () => cache.clear()
 
   ctx.effect(() => {
@@ -1104,7 +1226,21 @@ export function apply(ctx) {
       webServer.register({ kind: 'exact', path: `${API}status`, handler: handleStatus }),
       webServer.register({ kind: 'exact', path: `${API}settings`, handler: handleSettings }),
       webServer.register({ kind: 'exact', path: `${API}probe`, handler: handleProbe }),
+      webServer.register({ kind: 'exact', path: `${API}activity`, handler: handleActivity }),
     ]
+    try {
+      disposers.push(
+        ctx.on('session/event', (session, event) => {
+          try {
+            publishActivity(tickFromSessionEvent(event))
+          } catch {
+            /* never break the session event bus */
+          }
+        }),
+      )
+    } catch {
+      /* session events are unavailable on this profile */
+    }
     const events = ['credentials/record-updated', 'credentials/reference-updated', 'llm/adapters-updated', 'llm/models-updated']
     for (const event of events) {
       try {
@@ -1121,6 +1257,12 @@ export function apply(ctx) {
           /* ignore */
         }
       }
+      if (activityHeartbeat !== undefined) {
+        clearInterval(activityHeartbeat)
+        activityHeartbeat = undefined
+      }
+      for (const client of [...activityClients]) dropActivityClient(client)
+      activityCoalescer.reset()
     }
   })
 }

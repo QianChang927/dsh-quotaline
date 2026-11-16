@@ -16,6 +16,11 @@ window.__ModuleLoader__.load({
     const SETTINGS_EVENT = 'dsh-quotaline:settings-changed'
     const DOCK_SLOT = 'conversation.input.dock'
     const SETTINGS_SLOT = 'settings.section'
+    const ACTIVITY_URL = `${API}activity`
+    const ACTIVITY_MIN_MS = 8000
+    const ACTIVITY_RETRY_MS = [1000, 2000, 5000, 10000, 30000]
+    const ACTIVITY_OPEN_FALLBACK_SECONDS = 60
+    const ACTIVITY_DOWN_FALLBACK_SECONDS = 15
 
     const MESSAGES = {
       zh: {
@@ -37,7 +42,7 @@ window.__ModuleLoader__.load({
         settingsTitle: '额度条',
         globalTitle: '全局',
         refreshSeconds: '刷新间隔（秒）',
-        refreshHint: '范围 10–3600，切换模型时会立即刷新。',
+        refreshHint: '空闲时的刷新间隔，范围 10–3600；切换模型时会立即刷新。',
         language: '界面语言',
         languageHint: '跟随 DSH 语言，或单独固定为中文 / English。',
         languageAuto: '跟随 DSH',
@@ -47,6 +52,8 @@ window.__ModuleLoader__.load({
         limitModeHint: '控制 5h / 周 / 月限额显示已用还是剩余；余额气泡不受影响。',
         limitModeUsed: '已用',
         limitModeLeft: '剩余',
+        liveRefresh: '任务运行时自动刷新',
+        liveRefreshHint: 'Agent 执行任务时，每次模型响应后刷新余额/限额；实时通道不可用时按兜底间隔更新。关闭后只按刷新间隔更新。',
         usedSuffix: '已用',
         leftSuffix: '剩余',
         builtinsTitle: '内置模板',
@@ -103,7 +110,7 @@ window.__ModuleLoader__.load({
         settingsTitle: 'Quota Line',
         globalTitle: 'General',
         refreshSeconds: 'Refresh interval (seconds)',
-        refreshHint: '10–3600. Switching models refreshes immediately.',
+        refreshHint: 'Idle refresh interval, 10–3600. Switching models refreshes immediately.',
         language: 'Language',
         languageHint: 'Follow DSH, or pin this page to Chinese / English.',
         languageAuto: 'Follow DSH',
@@ -113,6 +120,8 @@ window.__ModuleLoader__.load({
         limitModeHint: 'Show limit chips as used or left. Balance chips are unaffected.',
         limitModeUsed: 'Used',
         limitModeLeft: 'Left',
+        liveRefresh: 'Live refresh during runs',
+        liveRefreshHint: 'Refresh balance or quota after each model response while the agent works. Falls back to a shorter interval when the live channel is unavailable. Turn off to refresh only on the interval.',
         usedSuffix: 'used',
         leftSuffix: 'left',
         builtinsTitle: 'Built-in templates',
@@ -296,33 +305,123 @@ window.__ModuleLoader__.load({
       return selection
     }
 
-    function useQuotaStatus(ctx, selection) {
+    function useSessionIsRunning(ctx, sessionId) {
+      const [running, setRunning] = useState(false)
+
+      useEffect(() => {
+        let disposed = false
+        let binding
+        try {
+          binding = sessionId && ctx?.sessions ? ctx.sessions.binding(sessionId) : undefined
+        } catch {
+          binding = undefined
+        }
+        if (!binding) {
+          setRunning(false)
+          return () => {}
+        }
+
+        const read = () => {
+          if (disposed) return
+          try {
+            const snapshot = binding.session.getSnapshot()
+            setRunning(
+              snapshot?.running === true
+                || (Array.isArray(snapshot?.pendingSubmissions) && snapshot.pendingSubmissions.length > 0)
+                || snapshot?.awaitingFirstTurn === true,
+            )
+          } catch {
+            setRunning(false)
+          }
+        }
+
+        read()
+        let off
+        try {
+          off = binding.session.subscribe(read)
+        } catch {
+          off = undefined
+        }
+        return () => {
+          disposed = true
+          if (typeof off === 'function') off()
+        }
+      }, [ctx, sessionId])
+
+      return running
+    }
+
+    function useQuotaStatus(ctx, selection, options = {}) {
       const provider = selection?.provider || ''
       const model = selection?.model || ''
+      const liveRefresh = options.liveRefresh !== false
+      const busy = options.busy === true
+      const trackingLive = liveRefresh && busy
       const [state, setState] = useState({ status: 'loading' })
       const [tick, setTick] = useState(0)
       const reload = useCallback(() => setTick((value) => value + 1), [])
+      const triggerRef = useRef(null)
+      const onlineRef = useRef(false)
 
       useEffect(() => {
         let disposed = false
         let controller
         let timer
+        let trailing
+        let inFlight = false
+        let pending = false
+        let lastEventAt = 0
+
+        const fallbackSeconds = (seconds) => {
+          const base = Math.min(3600, Math.max(10, Number(seconds) || 60))
+          if (!trackingLive) return base
+          return Math.min(
+            base,
+            onlineRef.current ? ACTIVITY_OPEN_FALLBACK_SECONDS : ACTIVITY_DOWN_FALLBACK_SECONDS,
+          )
+        }
 
         const schedule = (seconds) => {
           if (timer) clearTimeout(timer)
-          const delay = Math.min(3600, Math.max(10, Number(seconds) || 60)) * 1000
           timer = setTimeout(() => {
             if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
               void load(true)
             } else {
               schedule(seconds)
             }
-          }, delay)
+          }, fallbackSeconds(seconds) * 1000)
+        }
+
+        function queueEventRefresh() {
+          if (disposed) return
+          if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+          if (inFlight) {
+            pending = true
+            return
+          }
+          const now = Date.now()
+          const wait = lastEventAt + ACTIVITY_MIN_MS - now
+          if (wait > 0) {
+            if (trailing) clearTimeout(trailing)
+            trailing = setTimeout(() => {
+              trailing = undefined
+              queueEventRefresh()
+            }, wait)
+            return
+          }
+          if (trailing) {
+            clearTimeout(trailing)
+            trailing = undefined
+          }
+          lastEventAt = now
+          pending = false
+          void load(true)
         }
 
         const load = async (force) => {
           if (controller) controller.abort()
           controller = new AbortController()
+          inFlight = true
           try {
             const query = new URLSearchParams()
             if (provider) query.set('provider', provider)
@@ -331,13 +430,21 @@ window.__ModuleLoader__.load({
             const data = await api(`status?${query.toString()}`, { signal: controller.signal })
             if (disposed) return
             setState(data && typeof data === 'object' ? data : { status: 'error' })
-            if (data && data.refreshSeconds) schedule(data.refreshSeconds)
+            schedule(data && data.refreshSeconds ? data.refreshSeconds : 60)
           } catch (error) {
             if (disposed || error?.name === 'AbortError') return
             setState({ status: 'error', message: error?.message || String(error) })
             schedule(60)
+          } finally {
+            inFlight = false
+            if (!disposed && pending) {
+              pending = false
+              queueEventRefresh()
+            }
           }
         }
+
+        triggerRef.current = queueEventRefresh
 
         const onVisibility = () => {
           if (document.visibilityState === 'visible') void load(true)
@@ -351,12 +458,78 @@ window.__ModuleLoader__.load({
 
         return () => {
           disposed = true
+          triggerRef.current = null
           if (controller) controller.abort()
           if (timer) clearTimeout(timer)
+          if (trailing) clearTimeout(trailing)
           document.removeEventListener('visibilitychange', onVisibility)
           window.removeEventListener(SETTINGS_EVENT, onSettings)
         }
-      }, [ctx, provider, model, tick])
+      }, [ctx, provider, model, tick, trackingLive])
+
+      useEffect(() => {
+        onlineRef.current = false
+        if (!liveRefresh || typeof EventSource === 'undefined' || !provider) return undefined
+        let disposed = false
+        let source
+        let retry
+        let attempt = 0
+
+        function scheduleRetry() {
+          if (disposed) return
+          const delay = ACTIVITY_RETRY_MS[Math.min(attempt, ACTIVITY_RETRY_MS.length - 1)]
+          attempt += 1
+          if (retry) clearTimeout(retry)
+          retry = setTimeout(connect, delay)
+        }
+
+        function connect() {
+          if (disposed) return
+          try {
+            source = new EventSource(ACTIVITY_URL)
+          } catch {
+            scheduleRetry()
+            return
+          }
+          source.onopen = () => {
+            attempt = 0
+            onlineRef.current = true
+          }
+          source.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data)
+              if (data && data.provider === provider) triggerRef.current?.()
+            } catch {
+              /* malformed tick — ignore */
+            }
+          }
+          source.onerror = () => {
+            onlineRef.current = false
+            try {
+              source.close()
+            } catch {
+              /* ignore */
+            }
+            source = undefined
+            scheduleRetry()
+          }
+        }
+
+        connect()
+
+        return () => {
+          disposed = true
+          onlineRef.current = false
+          if (retry) clearTimeout(retry)
+          if (source) {
+            try {
+              source.close()
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }, [ctx, liveRefresh, provider])
 
       return [state, reload]
     }
@@ -463,6 +636,7 @@ window.__ModuleLoader__.load({
       const sessionId = props.sessionId
       const [language, setLanguage] = useState('auto')
       const [limitMode, setLimitMode] = useState('used')
+      const [liveRefresh, setLiveRefresh] = useState(true)
       useEffect(() => {
         let disposed = false
         const load = () => {
@@ -471,6 +645,7 @@ window.__ModuleLoader__.load({
               if (disposed || !payload) return
               if (typeof payload.language === 'string') setLanguage(payload.language)
               setLimitMode(payload.limitMode === 'left' ? 'left' : 'used')
+              setLiveRefresh(payload.liveRefresh !== false)
             })
             .catch(() => {})
         }
@@ -484,7 +659,8 @@ window.__ModuleLoader__.load({
       }, [])
       const { t } = useStrings(ctx, language)
       const selection = useModelSelection(ctx, sessionId)
-      const [status, reload] = useQuotaStatus(ctx, selection)
+      const busy = useSessionIsRunning(ctx, sessionId)
+      const [status, reload] = useQuotaStatus(ctx, selection, { liveRefresh, busy })
       const scrollerRef = useRef(null)
       const [thumb, setThumb] = useState({ left: 0, width: 0, visible: false })
       const scrollTimer = useRef(null)
@@ -789,6 +965,7 @@ window.__ModuleLoader__.load({
       const [refreshSeconds, setRefreshSeconds] = useState(60)
       const [language, setLanguage] = useState('auto')
       const [limitMode, setLimitMode] = useState('used')
+      const [liveRefresh, setLiveRefresh] = useState(true)
       const [builtins, setBuiltins] = useState([])
       const [drafts, setDrafts] = useState([])
       const [saving, setSaving] = useState(false)
@@ -806,6 +983,7 @@ window.__ModuleLoader__.load({
             setRefreshSeconds(payload.refreshSeconds || 60)
             setLanguage(payload.language === 'zh' || payload.language === 'en' ? payload.language : 'auto')
             setLimitMode(payload.limitMode === 'left' ? 'left' : 'used')
+            setLiveRefresh(payload.liveRefresh !== false)
             setBuiltins(Array.isArray(payload.builtins) ? payload.builtins : [])
             const providers = payload.providers && typeof payload.providers === 'object' ? payload.providers : {}
             setDrafts(Object.keys(providers).map((id) => draftFromEntry(id, providers[id])))
@@ -886,12 +1064,13 @@ window.__ModuleLoader__.load({
           const payload = await api('settings', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ refreshSeconds: Number(refreshSeconds) || 60, language, limitMode, providers }),
+            body: JSON.stringify({ refreshSeconds: Number(refreshSeconds) || 60, language, limitMode, liveRefresh, providers }),
           })
           if (payload && payload.settings) {
             setRefreshSeconds(payload.settings.refreshSeconds || 60)
             if (typeof payload.settings.language === 'string') setLanguage(payload.settings.language)
             setLimitMode(payload.settings.limitMode === 'left' ? 'left' : 'used')
+            setLiveRefresh(payload.settings.liveRefresh !== false)
           }
           setSavedAt(Date.now())
           window.dispatchEvent(new CustomEvent(SETTINGS_EVENT))
@@ -900,7 +1079,7 @@ window.__ModuleLoader__.load({
         } finally {
           setSaving(false)
         }
-      }, [drafts, refreshSeconds, language, limitMode])
+      }, [drafts, refreshSeconds, language, limitMode, liveRefresh])
 
       if (loading) {
         return h('div', { style: { padding: '12px', color: 'var(--dsw-alias-label-secondary)', fontSize: '12px' } }, '…')
@@ -956,6 +1135,16 @@ window.__ModuleLoader__.load({
               h('option', { value: 'used' }, t('limitModeUsed')),
               h('option', { value: 'left' }, t('limitModeLeft')),
             ),
+          ),
+          h(
+            Labeled,
+            { label: t('liveRefresh'), hint: t('liveRefreshHint') },
+            h('input', {
+              type: 'checkbox',
+              checked: liveRefresh,
+              style: { width: '16px', height: '16px', margin: '2px 0', accentColor: 'var(--dsw-alias-brand-primary)' },
+              onChange: (event) => setLiveRefresh(event.target.checked),
+            }),
           ),
         ),
 
