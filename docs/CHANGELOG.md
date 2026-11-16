@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.2] - 2026-11-16
+
+### 中文
+
+文档一致性补丁：修正 0.2.1 的版本记录，使 npm 包与 GitHub 仓库携带同一份
+CHANGELOG。此版本不包含代码行为变更。
+
+#### 修复
+
+- 移除 0.2.1 条目上方空的 `[Unreleased]` 小节，已发布版本不再出现在未发布区域。
+- 版本链接指向 `v0.2.2` 标签，`0.2.1` 保留标签链接。
+
+### English
+
+Documentation consistency patch: corrects the 0.2.1 release record so the npm
+package and the GitHub repository carry the same CHANGELOG. No runtime behavior
+changes.
+
+#### Fixed
+
+- Removed the empty `[Unreleased]` section above 0.2.1 so released versions no
+  longer sit under the unreleased area.
+- Version links point at the `v0.2.2` tag, with 0.2.1 tag links retained.
+
 ## [0.2.1] - 2026-11-16
 
 ### 中文
@@ -131,6 +155,7 @@ Credentials are read locally only — never uploaded, rewritten, or requested.
 - English and Simplified Chinese UI strings, plugin metadata, and documentation
   with light/dark previews.
 
+[0.2.2]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.2
 [0.2.1]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.1
 [0.2.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.0
 [0.1.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.1.0
