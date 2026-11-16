@@ -1,7 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
 ## [0.2.1] - 2026-11-16
 
 ### 中文
@@ -133,6 +131,6 @@ Credentials are read locally only — never uploaded, rewritten, or requested.
 - English and Simplified Chinese UI strings, plugin metadata, and documentation
   with light/dark previews.
 
-[Unreleased]: https://github.com/QianChang927/dsh-quotaline/compare/v0.2.0...HEAD
+[0.2.1]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.1
 [0.2.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.0
 [0.1.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.1.0
