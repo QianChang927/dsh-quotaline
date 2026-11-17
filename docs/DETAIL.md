@@ -2,13 +2,13 @@
 
 A full-width strip above the composer that shows the current model's balance or quota, read **locally** from your DeepSeek Harness credentials.
 
-![Quota Line account strip, light theme](./preview-light-account.svg)
+![Quota Line account strip, light theme](./previews/account-light.png)
 
-![Quota Line subscription limits strip, light theme](./preview-light-limit.svg)
+![Quota Line subscription limits strip, light theme](./previews/limit-light.png)
 
-![Quota Line account strip, dark theme](./preview-dark-account.svg)
+![Quota Line account strip, dark theme](./previews/account-dark.png)
 
-![Quota Line subscription limits strip, dark theme](./preview-dark-limit.svg)
+![Quota Line subscription limits strip, dark theme](./previews/limit-dark.png)
 
 ## What it shows
 
@@ -63,4 +63,4 @@ Replace `desktop` with the profile you use, then restart DeepSeek Harness so the
 
 No build step: `client.js` registers a lazy module factory through `window.__ModuleLoader__`, and `index.js` exports the Host `apply`.
 
-Architecture, route contracts, and the template schema are documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
+Architecture, route contracts, and the template schema are documented in [ARCHITECTURE.md](./ARCHITECTURE.md). The Simplified Chinese version of this page is [DETAIL.zh-CN.md](./DETAIL.zh-CN.md).

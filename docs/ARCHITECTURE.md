@@ -57,21 +57,24 @@ dsh-quotaline/
 ├─ client.js                # Client 半：无构建，window.__ModuleLoader__.load 工厂
 ├─ cordis.patch.yml         # bundle 激活行（id: dsh-quotaline）
 ├─ package.json             # 包元数据、exports、dsh.bundle / dsh.client
+├─ screenshots.json          # 插件市场条目的截图清单（相对路径）
 ├─ locale/{en,zh}.json      # 插件标题、描述、详情路径
-├─ icon.svg                 # 插件图标
+├─ icon.svg                 # 插件图标（exports["./icon"] 指向它）
+├─ icon.png                 # 插件市场图标（256×256 透明底）
 ├─ docs/
 │  ├─ ARCHITECTURE.md       # 本文
-│  ├─ DETAIL.md             # 插件详情页文档
+│  ├─ DETAIL.md             # 插件详情页文档（英文）
+│  ├─ DETAIL.zh-CN.md       # 插件详情页文档（中文，zh.json 指向它）
 │  ├─ CHANGELOG.md          # 版本变更记录（Keep a Changelog）
 │  ├─ README.zh-CN.md       # 中文 README
-│  ├─ preview-light-account.svg  # 浅色 · 余额/赠送预览
-│  ├─ preview-light-limit.svg    # 浅色 · 5h/周/月限额预览
-│  ├─ preview-dark-account.svg   # 深色 · 余额/赠送预览
-│  └─ preview-dark-limit.svg     # 深色 · 5h/周/月限额预览
+│  └─ previews/             # 文档插图：明暗 × 中英 × 余额/限额，共 8 张 PNG
+│     ├─ account-light.png / account-dark.png
+│     ├─ limit-light.png / limit-dark.png
+│     └─ *.zh-CN.png        # 中文界面版本（zh-CN 文档引用）
 ├─ README.md
 └─ LICENSE
 
-本地开发专用（git-ignored，不随包发布）：test/（node:test，37 个用例，含活动 tick/合并器）、AGENTS.md、CLAUDE.md、PUBLISHING.md。
+本地开发专用（git-ignored，不随包发布）：test/（node:test，37 个用例，含活动 tick/合并器）、AGENTS.md、CLAUDE.md。
 ```
 
 `package.json` 关键字段：
@@ -287,7 +290,7 @@ baseURL：
   - Refresh → error 系淡红色（`--dsw-alias-state-error-primary` 12% 填充 / 30% 描边），且与数值气泡同为 24px 高、13px 字号；
   - 其他未知项 → neutral。
 - 渲染前用 `isRenderableItem()` 过滤：限额项必须有有限数值的 `percent`，余额项必须有非空 `amount`；取不到的 5h / 周 / 月窗口直接不显示，不占位。
-- 赠送余额常驻显示，为 0 也保留（不再有 `isZeroBonus`）。
+- 赠金常驻显示，为 0 也保留（不再有 `isZeroBonus`）。
 - 百分比数值统一使用主文字色，不再按阈值改色；颜色语义由气泡底色表达。
 - i18n：`language` 支持 `auto | zh | en`；`limitMode` 支持 `used | left`，条带按语言拼接 `已用`/`剩余` 或 `used`/`left` 后缀；`liveRefresh` 控制事件刷新与兜底轮询；文案集中在 `MESSAGES`，条带与设置页共享。
 - 不使用 `document.body`、不读取其他插件的 DOM、不 import Harness Client 包。

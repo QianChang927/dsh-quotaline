@@ -24,11 +24,11 @@
 
 | Account balance · light | Subscription limits · light |
 |---|---|
-| ![Account balance strip, light theme](./docs/preview-light-account.svg) | ![Subscription limits strip, light theme](./docs/preview-light-limit.svg) |
+| ![Account balance strip, light theme](./docs/previews/account-light.png) | ![Subscription limits strip, light theme](./docs/previews/limit-light.png) |
 
 | Account balance · dark | Subscription limits · dark |
 |---|---|
-| ![Account balance strip, dark theme](./docs/preview-dark-account.svg) | ![Subscription limits strip, dark theme](./docs/preview-dark-limit.svg) |
+| ![Account balance strip, dark theme](./docs/previews/account-dark.png) | ![Subscription limits strip, dark theme](./docs/previews/limit-dark.png) |
 
 Balance and 5h windows use sky blue, bonus and weekly windows use green, monthly windows use amber, and the Refresh pill is a soft red capsule. Bonus stays visible even at zero; a limit window that the provider did not return is simply omitted. Both light and dark themes are supported.
 

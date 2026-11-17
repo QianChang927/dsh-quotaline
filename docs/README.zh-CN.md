@@ -24,20 +24,20 @@
 
 | 余额 · 浅色 | 限额 · 浅色 |
 |---|---|
-| ![余额条，浅色主题](./preview-light-account.svg) | ![限额条，浅色主题](./preview-light-limit.svg) |
+| ![余额条，浅色主题](./previews/account-light.zh-CN.png) | ![限额条，浅色主题](./previews/limit-light.zh-CN.png) |
 
 | 余额 · 深色 | 限额 · 深色 |
 |---|---|
-| ![余额条，深色主题](./preview-dark-account.svg) | ![限额条，深色主题](./preview-dark-limit.svg) |
+| ![余额条，深色主题](./previews/account-dark.zh-CN.png) | ![限额条，深色主题](./previews/limit-dark.zh-CN.png) |
 
-余额与 5h 窗口用天蓝，赠送余额与周窗口用绿色，月窗口用琥珀色，Refresh 是淡红色胶囊。赠送余额为 0 也保留；接口没返回的限额窗口直接不显示。浅色与深色主题均已适配。
+余额与 5h 窗口用天蓝，赠金与周窗口用绿色，月窗口用琥珀色，Refresh 是淡红色胶囊。赠金为 0 也保留；接口没返回的限额窗口直接不显示。浅色与深色主题均已适配。
 
 ## 功能
 
 | 能力 | 说明 |
 |---|---|
 | **当前模型** | 读取会话的 `modelSelection` projection；空白会话回退到 profile 默认模型。 |
-| **DeepSeek Account** | 走 DSH 的 OAuth 账号服务，显示充值余额与赠送余额。 |
+| **DeepSeek Account** | 走 DSH 的 OAuth 账号服务，显示余额与赠金。 |
 | **DeepSeek API** | `GET {baseURL}/user/balance`，Bearer 认证，支持 CNY/USD。 |
 | **Kimi Code** | `GET https://api.kimi.com/coding/v1/usages`，同时兼容旧版 `limits[]` 与新版 `usages.limit_5h / limit_7d / limit_month_*`。 |
 | **GLM Coding Plan** | `GET {origin}/api/monitor/usage/quota/limit`，`unit=3` 折算为小时、`unit=6` 为周、`TIME_LIMIT` 为月度。 |
@@ -51,7 +51,7 @@
 
 | 供应商 | 显示内容 | 端点 |
 |---|---|---|
-| DeepSeek Account（`deepseek-account`） | 充值余额 + 赠送余额 | DSH 账号服务（OAuth） |
+| DeepSeek Account（`deepseek-account`） | 余额 + 赠金 | DSH 账号服务（OAuth） |
 | DeepSeek API（`deepseek-official`） | 余额 | `GET {baseURL}/user/balance` |
 | Moonshot / Kimi API | 余额 | `GET {baseURL}/v1/users/me/balance` |
 | Kimi Code | 5h / 周 / 月用量 | `GET {baseURL}/v1/usages` |
