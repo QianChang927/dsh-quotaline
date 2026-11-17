@@ -232,10 +232,35 @@ window.__ModuleLoader__.load({
       return label
     }
 
+    // <rounding>
+    // Display rounding runs on the decimal string, so half-way values never
+    // collapse the way binary floating point would (`0.005` stays `0.01`).
+    function decimalText(value) {
+      if (typeof value === 'string') return value.trim()
+      if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+      return ''
+    }
+
+    function roundHalfUpText(value, digits) {
+      const match = /^([+-]?)(\d*)(?:\.(\d*))?$/.exec(decimalText(value))
+      if (!match || (match[2] === '' && (match[3] || '') === '')) return null
+      const sign = match[1] === '-' ? '-' : ''
+      const whole = match[2] || '0'
+      const frac = (match[3] || '').padEnd(digits + 1, '0')
+      const kept = frac.slice(0, digits)
+      const roundUp = Number(frac.charAt(digits) || '0') >= 5
+      const scaled = BigInt(whole + kept) + (roundUp ? 1n : 0n)
+      const padded = scaled.toString().padStart(digits + 1, '0')
+      if (digits === 0) return `${sign}${padded}`
+      const cut = padded.length - digits
+      return `${sign}${padded.slice(0, cut)}.${padded.slice(cut)}`
+    }
+
     function formatAmount(amount, currency) {
-      const raw = String(amount)
-      const value = Number(raw)
-      if (!Number.isFinite(value)) return raw
+      const rounded = roundHalfUpText(amount, 2)
+      if (rounded === null) return String(amount)
+      const value = Number(rounded)
+      if (!Number.isFinite(value)) return String(amount)
       const formatted = value.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -244,11 +269,26 @@ window.__ModuleLoader__.load({
     }
 
     function formatPercent(percent) {
-      const value = Number(percent)
-      if (!Number.isFinite(value)) return ''
-      const rounded = Math.round(value * 10) / 10
-      return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}%`
+      const rounded = roundHalfUpText(percent, 0)
+      if (rounded === null) return ''
+      return `${rounded}%`
     }
+
+    // 100% / 0% are reserved for the real boundary: a limit at 99.6% reads as
+    // 99% used, so the strip never claims a quota is exhausted early. The
+    // "left" reading is the complement of the rounded "used" value, so the two
+    // always add up to exactly 100%.
+    function displayPercent(percent, limitMode) {
+      const clamped = Math.max(0, Math.min(100, Number(percent)))
+      if (!Number.isFinite(clamped)) return ''
+      const used = Number(roundHalfUpText(clamped, 0))
+      if (!Number.isFinite(used)) return ''
+      let shown = limitMode === 'left' ? 100 - used : used
+      if (shown >= 100 && clamped > 0 && clamped < 100) shown = 99
+      if (shown <= 0 && clamped > 0 && clamped < 100) shown = 1
+      return formatPercent(shown)
+    }
+    // </rounding>
 
     function formatTime(iso) {
       if (!iso) return ''
@@ -720,15 +760,13 @@ window.__ModuleLoader__.load({
           const currency = item && item.currency
           const percent = item && typeof item.percent === 'number' ? item.percent : null
           const suffix = limitMode === 'left' ? t('leftSuffix') : t('usedSuffix')
-          const shownPercent =
-            percent !== null && limitMode === 'left' ? Math.max(0, Math.min(100, 100 - percent)) : percent
           const tone = itemTone(item)
           content.push(
             h(
               'span',
               { key: `item-${index}`, style: chipStyle(tone), 'data-quotaline-tone': tone },
               h('span', { style: mutedStyle }, translateLabel(item.label, t)),
-              h('span', null, percent !== null ? `${formatPercent(shownPercent)} ${suffix}` : formatAmount(item.amount, currency)),
+              h('span', null, percent !== null ? `${displayPercent(percent, limitMode)} ${suffix}` : formatAmount(item.amount, currency)),
             ),
           )
         })

@@ -5,14 +5,14 @@
 ### 中文
 
 本次发布为插件市场收录补齐素材，并统一文档与文案：新增市场图标、八张真实界面
-预览图与中文详情页，同时把 DSH 账号界面的「赠金」称呼同步到插件文案。运行时行为
-只有该文案一处变化。
+预览图与中文详情页，同时把 DSH 账号界面的「赠金」称呼同步到插件文案，并让余额与
+限额的显示舍入更严谨。运行时变化只有文案与百分比显示两处。
 
 #### 新增
 
 - 新增八张 1600×480 预览图至 `docs/previews/`，覆盖账户余额与用量窗口两类形态、
-  明暗两套主题、中英两种语言；均由真实 `dsh web` 界面渲染截取，限制类数值按
-  真实实现的标签与配色合成填充。
+  明暗两套主题、中英两种语言；均由真实 `dsh web` 界面渲染截取，用量窗口一类通过
+  本地模拟的智谱额度接口驱动真实解析与渲染。
 - 新增 `docs/DETAIL.zh-CN.md`，并把 `locale/zh.json` 的 `meta.detail` 指向它：
   中文用户的详情页不再显示英文内容。
 - 新增仓库根 `icon.png`（256×256，市场图标，由 `icon.svg` 渲染）与
@@ -24,7 +24,10 @@
   接受 `赠送余额`、`赠金` 与 `bonus`，旧模板与缓存不受影响。
 - `docs/ARCHITECTURE.md` 的仓库结构树与 `README.md`、`docs/README.zh-CN.md`、
   `docs/DETAIL.md` 的图片引用同步更新。
-- 发布流程从本地 `PUBLISHING.md` 迁入 `AGENTS.md` 的 `## Release` 节。
+- 金额与百分比的显示规则写进 `README.md` 与 `docs/README.zh-CN.md` 的
+  `## 数值与舍入` / `## Numbers and rounding` 一节，并把舍入改为在十进制字符串上
+  完成：`0.005` 不再被浮点误差抹成 `0.00`；限额取整数百分比，`100%` 与 `0%`
+  只在真实边界出现。
 
 #### 移除
 
@@ -35,14 +38,15 @@
 This release fills in the assets the plugin marketplace expects and aligns the
 docs and wording: a marketplace icon, eight real-interface previews, and a
 Chinese detail page, plus the "granted balance" wording the DSH account screen
-uses. Only that one string changes at runtime.
+uses and stricter display rounding for balances and limits. Only the wording and
+the percentage display change at runtime.
 
 #### Added
 
 - Eight 1600×480 previews under `docs/previews/`, covering account balance and
   usage windows, light and dark themes, and English and Chinese; each is captured
-  from a real `dsh web` window, with limit values synthesized to match the labels
-  and colors the implementation actually renders.
+  from a real `dsh web` window, and the usage previews are driven by a local mock
+  of the Zhipu quota endpoint so the real parser and renderer produce them.
 - `docs/DETAIL.zh-CN.md`, now the target of `meta.detail` in `locale/zh.json`, so
   Chinese users no longer land on an English detail page.
 - A repository-root `icon.png` (256×256 marketplace icon rendered from
@@ -56,8 +60,11 @@ uses. Only that one string changes at runtime.
   templates and caches keep working.
 - The repository tree in `docs/ARCHITECTURE.md` and the image references in
   `README.md`, `docs/README.zh-CN.md`, and `docs/DETAIL.md` were updated.
-- The release procedure moved from the local `PUBLISHING.md` into the `## Release`
-  section of `AGENTS.md`.
+- The rounding rules for amounts and percentages are now documented in
+  `## Numbers and rounding` in `README.md` and `docs/README.zh-CN.md`, and the
+  rounding itself runs on decimal strings: `0.005` no longer collapses to `0.00`
+  through floating-point error. Limits show whole percentages, and `100%` / `0%`
+  appear only at the real boundary.
 
 #### Removed
 

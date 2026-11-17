@@ -58,6 +58,25 @@ Balance and 5h windows use sky blue, bonus and weekly windows use green, monthly
 | Zhipu API | Balance | `GET {baseURL}/api/paas/v4/balance` |
 | GLM Coding Plan | 5h / weekly / monthly usage | `GET {origin}/api/monitor/usage/quota/limit` |
 
+## Numbers and rounding
+
+The strip formats whatever the provider returned and never rewrites stored
+values, but the rounding is fixed and documented so two sessions never disagree
+about the same number.
+
+- **Balances** use two decimals and round half up: `5.198` shows as `¥5.20`,
+  `5.192` as `¥5.19`, and `0.005` as `¥0.01`. Rounding runs on the decimal
+  string rather than on a binary float, so a value ending in 5 cannot collapse
+  downward (`1.005` stays `¥1.01`).
+- **Limits** use whole percentages and round half up: `42.42%` shows as `42%`
+  and `42.5%` as `43%`. The "left" mode renders `100 − used` from the rounded
+  value, so the used and left readings always add up to exactly 100%.
+- **100% and 0% mean the real boundary.** A limit at `99.6%` reads as `99%`
+  used, and a remaining share of `0.4%` reads as `99%` left, so the strip never
+  claims a quota is exhausted while a fraction is still available.
+- Percentages are clamped to `0–100`; a provider that reports more than 100% is
+  shown as `100%`.
+
 ## Installation
 
 ```sh
@@ -105,7 +124,7 @@ A custom template is stored locally in `$DSH_HOME/dsh-quotaline/settings.json` (
 
 ## Documentation
 
-- [Plugin detail](./docs/DETAIL.md) — capabilities, setup, and troubleshooting in DSH's plugin detail page.
+- [Plugin detail](./docs/DETAIL.md) — the overview shown on DSH's plugin detail page.
 - [Architecture](./docs/ARCHITECTURE.md) — Host/Client boundary, route contracts, matching rules, and the template schema.
 - [Changelog](./docs/CHANGELOG.md) — release history.
 - [简体中文](./docs/README.zh-CN.md) — Chinese README.
