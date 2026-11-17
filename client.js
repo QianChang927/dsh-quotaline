@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
         refresh: '刷新',
         balance: '余额',
         topUp: '充值余额',
-        bonus: '赠送余额',
+        bonus: '赠金',
         available: '可用余额',
         fiveHour: '5小时',
         weekly: '每周',
@@ -224,7 +224,7 @@ window.__ModuleLoader__.load({
       const key = label.trim().toLowerCase()
       if (key === '余额' || key === 'balance') return t('balance')
       if (key === '充值余额' || key === 'top-up' || key === 'topup') return t('topUp')
-      if (key === '赠送余额' || key === 'bonus') return t('bonus')
+      if (key === '赠送余额' || key === '赠金' || key === 'bonus') return t('bonus')
       if (key === '可用余额' || key === 'available') return t('available')
       if (key === '5h' || key === '5小时' || key === '5 小时') return t('fiveHour')
       if (key === 'weekly' || key === '周' || key === '每周') return t('weekly')
@@ -601,7 +601,7 @@ window.__ModuleLoader__.load({
 
     function itemTone(item) {
       const label = String((item && item.label) || '').toLowerCase()
-      if (/bonus|赠送/.test(label)) return 'success'
+      if (/bonus|赠送|赠金/.test(label)) return 'success'
       if (/weekly|week|周/.test(label)) return 'success'
       if (/monthly|month|月/.test(label)) return 'warn'
       if (/5h|fivehour|5小时/.test(label)) return 'info'
