@@ -1,6 +1,6 @@
 {
   "name": "dsh-quotaline",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Model quota / balance strip above the composer for DeepSeek Harness — reads local credentials read-only, no API key prompts.",
   "type": "module",
   "license": "MIT",
@@ -33,6 +33,7 @@
     "locale/*.json",
     "docs",
     "icon.svg",
+    "icon.png",
     "README.md",
     "LICENSE"
   ],

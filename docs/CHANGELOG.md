@@ -1,5 +1,69 @@
 # Changelog
 
+## [0.3.1] - 2026-11-18
+
+### 中文
+
+本次发布为插件市场收录补齐素材，并统一文档与文案：新增市场图标、八张真实界面
+预览图与中文详情页，同时把 DSH 账号界面的「赠金」称呼同步到插件文案。运行时行为
+只有该文案一处变化。
+
+#### 新增
+
+- 新增八张 1600×480 预览图至 `docs/previews/`，覆盖账户余额与用量窗口两类形态、
+  明暗两套主题、中英两种语言；均由真实 `dsh web` 界面渲染截取，限制类数值按
+  真实实现的标签与配色合成填充。
+- 新增 `docs/DETAIL.zh-CN.md`，并把 `locale/zh.json` 的 `meta.detail` 指向它：
+  中文用户的详情页不再显示英文内容。
+- 新增仓库根 `icon.png`（256×256，市场图标，由 `icon.svg` 渲染）与
+  `screenshots.json`（四条英文截图路径），供插件市场抓取。
+
+#### 变更
+
+- 中文「赠送余额」改为「赠金」，与 DSH 账号界面用词一致；`translateLabel` 继续
+  接受 `赠送余额`、`赠金` 与 `bonus`，旧模板与缓存不受影响。
+- `docs/ARCHITECTURE.md` 的仓库结构树与 `README.md`、`docs/README.zh-CN.md`、
+  `docs/DETAIL.md` 的图片引用同步更新。
+- 发布流程从本地 `PUBLISHING.md` 迁入 `AGENTS.md` 的 `## Release` 节。
+
+#### 移除
+
+- 移除 `docs/preview-{light,dark}-{account,limit}.svg` 四个手绘预览图，由 PNG 取代。
+
+### English
+
+This release fills in the assets the plugin marketplace expects and aligns the
+docs and wording: a marketplace icon, eight real-interface previews, and a
+Chinese detail page, plus the "granted balance" wording the DSH account screen
+uses. Only that one string changes at runtime.
+
+#### Added
+
+- Eight 1600×480 previews under `docs/previews/`, covering account balance and
+  usage windows, light and dark themes, and English and Chinese; each is captured
+  from a real `dsh web` window, with limit values synthesized to match the labels
+  and colors the implementation actually renders.
+- `docs/DETAIL.zh-CN.md`, now the target of `meta.detail` in `locale/zh.json`, so
+  Chinese users no longer land on an English detail page.
+- A repository-root `icon.png` (256×256 marketplace icon rendered from
+  `icon.svg`) and `screenshots.json` (four English screenshot paths) for the
+  marketplace to pick up.
+
+#### Changed
+
+- The Chinese label for bonus balance is now 「赠金」, matching the DSH account
+  screen; `translateLabel` still accepts `赠送余额`, `赠金`, and `bonus`, so older
+  templates and caches keep working.
+- The repository tree in `docs/ARCHITECTURE.md` and the image references in
+  `README.md`, `docs/README.zh-CN.md`, and `docs/DETAIL.md` were updated.
+- The release procedure moved from the local `PUBLISHING.md` into the `## Release`
+  section of `AGENTS.md`.
+
+#### Removed
+
+- The four hand-drawn SVGs `docs/preview-{light,dark}-{account,limit}.svg`,
+  replaced by the PNG previews.
+
 ## [0.3.0] - 2026-11-16
 
 ### 中文
@@ -196,6 +260,7 @@ Credentials are read locally only — never uploaded, rewritten, or requested.
 - English and Simplified Chinese UI strings, plugin metadata, and documentation
   with light/dark previews.
 
+[0.3.1]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.3.1
 [0.3.0]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.3.0
 [0.2.2]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.2
 [0.2.1]: https://github.com/QianChang927/dsh-quotaline/releases/tag/v0.2.1

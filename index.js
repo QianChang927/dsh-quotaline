@@ -10,7 +10,7 @@ import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const PACKAGE_VERSION = '0.3.0'
+const PACKAGE_VERSION = '0.3.1'
 const API = '/dsh-quotaline/api/'
 const SETTINGS_VERSION = 1
 const CACHE_MS = 30_000
