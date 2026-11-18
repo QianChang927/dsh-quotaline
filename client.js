@@ -15,6 +15,7 @@ window.__ModuleLoader__.load({
     const API = '/dsh-quotaline/api/'
     const SETTINGS_EVENT = 'dsh-quotaline:settings-changed'
     const DOCK_SLOT = 'conversation.input.dock'
+    const INLINE_SLOT = 'conversation.input.right'
     const SETTINGS_SLOT = 'settings.section'
     const ACTIVITY_URL = `${API}activity`
     const ACTIVITY_MIN_MS = 8000
@@ -52,6 +53,10 @@ window.__ModuleLoader__.load({
         limitModeHint: '控制 5h / 周 / 月限额显示已用还是剩余；余额气泡不受影响。',
         limitModeUsed: '已用',
         limitModeLeft: '剩余',
+        placement: '显示位置',
+        placementHint: '默认在输入框上方显示整条；改成一行则收进模型选择器左侧，只显示一个读数。',
+        placementDock: '输入框上方（整条）',
+        placementInline: '模型选择器左侧（一行）',
         liveRefresh: '任务运行时自动刷新',
         liveRefreshHint: 'Agent 执行任务时，每次模型响应后刷新余额/限额；实时通道不可用时按兜底间隔更新。关闭后只按刷新间隔更新。',
         usedSuffix: '已用',
@@ -120,6 +125,10 @@ window.__ModuleLoader__.load({
         limitModeHint: 'Show limit chips as used or left. Balance chips are unaffected.',
         limitModeUsed: 'Used',
         limitModeLeft: 'Left',
+        placement: 'Placement',
+        placementHint: 'Show the full strip above the composer, or condense it into one reading beside the model selector.',
+        placementDock: 'Above the composer (strip)',
+        placementInline: 'Beside the model selector (one line)',
         liveRefresh: 'Live refresh during runs',
         liveRefreshHint: 'Refresh balance or quota after each model response while the agent works. Falls back to a shorter interval when the live channel is unavailable. Turn off to refresh only on the interval.',
         usedSuffix: 'used',
@@ -189,6 +198,50 @@ window.__ModuleLoader__.load({
       const dict = MESSAGES[lang] || MESSAGES.en
       const t = useCallback((key) => dict[key] ?? MESSAGES.en[key] ?? key, [dict])
       return { lang, t }
+    }
+
+    /** Settings snapshot shared by both seats. The strip and the inline badge
+     * stay registered and only the one matching `placement` renders, so changing
+     * the setting never re-registers slots. */
+    const DEFAULT_CLIENT_SETTINGS = { language: 'auto', limitMode: 'used', liveRefresh: true, placement: 'dock' }
+    let settingsCache = null
+    let settingsInflight = null
+
+    function normalizeClientSettings(payload) {
+      const next = { ...(settingsCache || DEFAULT_CLIENT_SETTINGS) }
+      if (typeof payload.language === 'string') next.language = payload.language
+      next.limitMode = payload.limitMode === 'left' ? 'left' : 'used'
+      next.liveRefresh = payload.liveRefresh !== false
+      next.placement = payload.placement === 'inline' ? 'inline' : 'dock'
+      return next
+    }
+
+    function useQuotaSettings(ctx) {
+      const [settings, setSettings] = useState(settingsCache || DEFAULT_CLIENT_SETTINGS)
+      useEffect(() => {
+        let disposed = false
+        const load = () => {
+          if (!settingsInflight) {
+            settingsInflight = api('settings').finally(() => {
+              settingsInflight = null
+            })
+          }
+          settingsInflight
+            .then((payload) => {
+              if (disposed || !payload) return
+              settingsCache = normalizeClientSettings(payload)
+              setSettings(settingsCache)
+            })
+            .catch(() => {})
+        }
+        load()
+        window.addEventListener(SETTINGS_EVENT, load)
+        return () => {
+          disposed = true
+          window.removeEventListener(SETTINGS_EVENT, load)
+        }
+      }, [])
+      return settings
     }
 
     async function api(path, init) {
@@ -395,6 +448,7 @@ window.__ModuleLoader__.load({
       const provider = selection?.provider || ''
       const model = selection?.model || ''
       const liveRefresh = options.liveRefresh !== false
+      const enabled = options.enabled !== false
       const busy = options.busy === true
       const trackingLive = liveRefresh && busy
       const [state, setState] = useState({ status: 'loading' })
@@ -404,6 +458,7 @@ window.__ModuleLoader__.load({
       const onlineRef = useRef(false)
 
       useEffect(() => {
+        if (!enabled) return undefined
         let disposed = false
         let controller
         let timer
@@ -505,11 +560,11 @@ window.__ModuleLoader__.load({
           document.removeEventListener('visibilitychange', onVisibility)
           window.removeEventListener(SETTINGS_EVENT, onSettings)
         }
-      }, [ctx, provider, model, tick, trackingLive])
+      }, [ctx, provider, model, tick, trackingLive, enabled])
 
       useEffect(() => {
         onlineRef.current = false
-        if (!liveRefresh || typeof EventSource === 'undefined' || !provider) return undefined
+        if (!enabled || !liveRefresh || typeof EventSource === 'undefined' || !provider) return undefined
         let disposed = false
         let source
         let retry
@@ -569,7 +624,7 @@ window.__ModuleLoader__.load({
             }
           }
         }
-      }, [ctx, liveRefresh, provider])
+      }, [ctx, liveRefresh, provider, enabled])
 
       return [state, reload]
     }
@@ -674,33 +729,16 @@ window.__ModuleLoader__.load({
     function QuotaStrip(props) {
       const ctx = props.ctx
       const sessionId = props.sessionId
-      const [language, setLanguage] = useState('auto')
-      const [limitMode, setLimitMode] = useState('used')
-      const [liveRefresh, setLiveRefresh] = useState(true)
-      useEffect(() => {
-        let disposed = false
-        const load = () => {
-          api('settings')
-            .then((payload) => {
-              if (disposed || !payload) return
-              if (typeof payload.language === 'string') setLanguage(payload.language)
-              setLimitMode(payload.limitMode === 'left' ? 'left' : 'used')
-              setLiveRefresh(payload.liveRefresh !== false)
-            })
-            .catch(() => {})
-        }
-        load()
-        const onSettings = () => load()
-        window.addEventListener(SETTINGS_EVENT, onSettings)
-        return () => {
-          disposed = true
-          window.removeEventListener(SETTINGS_EVENT, onSettings)
-        }
-      }, [])
-      const { t } = useStrings(ctx, language)
+      const settings = useQuotaSettings(ctx)
+      const active = settings.placement === 'dock'
+      const { t } = useStrings(ctx, settings.language)
       const selection = useModelSelection(ctx, sessionId)
       const busy = useSessionIsRunning(ctx, sessionId)
-      const [status, reload] = useQuotaStatus(ctx, selection, { liveRefresh, busy })
+      const [status, reload] = useQuotaStatus(ctx, active ? selection : null, {
+        liveRefresh: settings.liveRefresh,
+        busy,
+        enabled: active,
+      })
       const scrollerRef = useRef(null)
       const [thumb, setThumb] = useState({ left: 0, width: 0, visible: false })
       const scrollTimer = useRef(null)
@@ -726,6 +764,8 @@ window.__ModuleLoader__.load({
       useEffect(() => () => {
         if (scrollTimer.current) clearTimeout(scrollTimer.current)
       }, [])
+
+      if (!active) return null
 
       const name = status?.displayName || selection?.provider || t('unknown')
       const items = Array.isArray(status?.items) ? status.items : []
@@ -759,14 +799,14 @@ window.__ModuleLoader__.load({
           if (!isRenderableItem(item)) return
           const currency = item && item.currency
           const percent = item && typeof item.percent === 'number' ? item.percent : null
-          const suffix = limitMode === 'left' ? t('leftSuffix') : t('usedSuffix')
+          const suffix = settings.limitMode === 'left' ? t('leftSuffix') : t('usedSuffix')
           const tone = itemTone(item)
           content.push(
             h(
               'span',
               { key: `item-${index}`, style: chipStyle(tone), 'data-quotaline-tone': tone },
               h('span', { style: mutedStyle }, translateLabel(item.label, t)),
-              h('span', null, percent !== null ? `${displayPercent(percent, limitMode)} ${suffix}` : formatAmount(item.amount, currency)),
+              h('span', null, percent !== null ? `${displayPercent(percent, settings.limitMode)} ${suffix}` : formatAmount(item.amount, currency)),
             ),
           )
         })
@@ -842,6 +882,97 @@ window.__ModuleLoader__.load({
             t('refresh'),
           ),
         ),
+      )
+    }
+
+    const badgeStyle = {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '4px',
+      flex: '0 0 auto',
+      height: '28px',
+      padding: '0 6px',
+      border: 0,
+      borderRadius: 'var(--dsw-radius-sm)',
+      background: 'transparent',
+      color: 'var(--dsw-alias-label-secondary)',
+      fontFamily: 'inherit',
+      fontSize: '12px',
+      lineHeight: '20px',
+      fontVariantNumeric: 'tabular-nums',
+      whiteSpace: 'nowrap',
+      cursor: 'pointer',
+    }
+
+    /** `余额 ¥128.40` / `每周 42% 剩余`: the localized label, the reading, and,
+     * for usage windows, whether the reading is used or left. */
+    function badgeReading(item, limitMode, t) {
+      if (!item) return ''
+      const label = translateLabel(item.label, t)
+      if (typeof item.percent === 'number') {
+        const suffix = limitMode === 'left' ? t('leftSuffix') : t('usedSuffix')
+        const value = `${displayPercent(item.percent, limitMode)} ${suffix}`
+        return label ? `${label} ${value}` : value
+      }
+      const value = formatAmount(item.amount, item.currency)
+      return label ? `${label} ${value}` : value
+    }
+
+    /** One compact reading in the composer tool row, beside the model selector.
+     * A balance wins over usage windows; with only windows, the most constrained
+     * one is shown. The tooltip and the accessible name carry every reading, and
+     * the button refreshes on click. */
+    function QuotaBadge(props) {
+      const ctx = props.ctx
+      const settings = useQuotaSettings(ctx)
+      const active = settings.placement === 'inline'
+      const { t } = useStrings(ctx, settings.language)
+      const selection = useModelSelection(ctx, props.sessionId)
+      const busy = useSessionIsRunning(ctx, props.sessionId)
+      const [status, reload] = useQuotaStatus(ctx, active ? selection : null, {
+        liveRefresh: settings.liveRefresh,
+        busy,
+        enabled: active,
+      })
+      const [hover, setHover] = useState(false)
+      const [focused, setFocused] = useState(false)
+
+      if (!active || status?.status !== 'ok') return null
+      const items = (Array.isArray(status.items) ? status.items : []).filter(isRenderableItem)
+      if (items.length === 0) return null
+
+      const amounts = items.filter((item) => typeof item.percent !== 'number')
+      const primary = amounts.length > 0
+        ? amounts[0]
+        : items.reduce((worst, item) => (Number(item.percent) > Number(worst.percent) ? item : worst), items[0])
+      const text = badgeReading(primary, settings.limitMode, t)
+      if (text === '') return null
+
+      const title = [
+        status.displayName || selection?.provider || t('unknown'),
+        ...items.map((item) => badgeReading(item, settings.limitMode, t)),
+        `${t('okUpdated')} ${formatTime(status.updatedAt)}`,
+      ].join('\n')
+
+      return h(
+        'button',
+        {
+          type: 'button',
+          style: {
+            ...badgeStyle,
+            background: hover || focused ? 'var(--dsw-alias-interactive-bg-hover)' : 'transparent',
+            boxShadow: focused ? '0 0 0 2px var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary))' : 'none',
+          },
+          title,
+          'aria-label': title.replace(/\n/g, ' · '),
+          onMouseEnter: () => setHover(true),
+          onMouseLeave: () => setHover(false),
+          onFocus: () => setFocused(true),
+          onBlur: () => setFocused(false),
+          onMouseDown: (event) => event.preventDefault(),
+          onClick: () => reload(),
+        },
+        text,
       )
     }
 
@@ -1003,6 +1134,7 @@ window.__ModuleLoader__.load({
       const [refreshSeconds, setRefreshSeconds] = useState(60)
       const [language, setLanguage] = useState('auto')
       const [limitMode, setLimitMode] = useState('used')
+      const [placement, setPlacement] = useState('dock')
       const [liveRefresh, setLiveRefresh] = useState(true)
       const [builtins, setBuiltins] = useState([])
       const [drafts, setDrafts] = useState([])
@@ -1021,6 +1153,7 @@ window.__ModuleLoader__.load({
             setRefreshSeconds(payload.refreshSeconds || 60)
             setLanguage(payload.language === 'zh' || payload.language === 'en' ? payload.language : 'auto')
             setLimitMode(payload.limitMode === 'left' ? 'left' : 'used')
+            setPlacement(payload.placement === 'inline' ? 'inline' : 'dock')
             setLiveRefresh(payload.liveRefresh !== false)
             setBuiltins(Array.isArray(payload.builtins) ? payload.builtins : [])
             const providers = payload.providers && typeof payload.providers === 'object' ? payload.providers : {}
@@ -1102,12 +1235,13 @@ window.__ModuleLoader__.load({
           const payload = await api('settings', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ refreshSeconds: Number(refreshSeconds) || 60, language, limitMode, liveRefresh, providers }),
+            body: JSON.stringify({ refreshSeconds: Number(refreshSeconds) || 60, language, limitMode, placement, liveRefresh, providers }),
           })
           if (payload && payload.settings) {
             setRefreshSeconds(payload.settings.refreshSeconds || 60)
             if (typeof payload.settings.language === 'string') setLanguage(payload.settings.language)
             setLimitMode(payload.settings.limitMode === 'left' ? 'left' : 'used')
+            setPlacement(payload.settings.placement === 'inline' ? 'inline' : 'dock')
             setLiveRefresh(payload.settings.liveRefresh !== false)
           }
           setSavedAt(Date.now())
@@ -1117,7 +1251,7 @@ window.__ModuleLoader__.load({
         } finally {
           setSaving(false)
         }
-      }, [drafts, refreshSeconds, language, limitMode, liveRefresh])
+      }, [drafts, refreshSeconds, language, limitMode, placement, liveRefresh])
 
       if (loading) {
         return h('div', { style: { padding: '12px', color: 'var(--dsw-alias-label-secondary)', fontSize: '12px' } }, '…')
@@ -1172,6 +1306,20 @@ window.__ModuleLoader__.load({
               },
               h('option', { value: 'used' }, t('limitModeUsed')),
               h('option', { value: 'left' }, t('limitModeLeft')),
+            ),
+          ),
+          h(
+            Labeled,
+            { label: t('placement'), hint: t('placementHint') },
+            h(
+              'select',
+              {
+                style: { ...inputStyle, width: '200px' },
+                value: placement,
+                onChange: (event) => setPlacement(event.target.value),
+              },
+              h('option', { value: 'dock' }, t('placementDock')),
+              h('option', { value: 'inline' }, t('placementInline')),
             ),
           ),
           h(
@@ -1243,6 +1391,7 @@ window.__ModuleLoader__.load({
 
     function apply(ctx) {
       const Strip = withContext(QuotaStrip, ctx)
+      const Badge = withContext(QuotaBadge, ctx)
       const Settings = withContext(QuotaSettings, ctx)
       const navLabel = 'Quota Line'
 
@@ -1250,6 +1399,15 @@ window.__ModuleLoader__.load({
         ctx.slots.register(
           { name: DOCK_SLOT, id: 'dsh-quotaline', order: 30, label: navLabel },
           Strip,
+        ),
+      )
+
+      // The inline seat renders only when `placement` is `inline`; the strip does
+      // the mirror check, so exactly one of them is ever visible.
+      ctx.slots.inject(INLINE_SLOT, () =>
+        ctx.slots.register(
+          { name: INLINE_SLOT, id: 'dsh-quotaline', order: 30, label: navLabel },
+          Badge,
         ),
       )
 
