@@ -13,9 +13,9 @@
 
 ---
 
-`dsh-quotaline` embeds a single-line strip in the slot right above the composer. It follows the session's current model: switch to a DeepSeek Account model and you see the account wallet; switch to a DeepSeek API model and you see that API key's balance; Kimi Code and GLM Coding Plan show their 5h / weekly / monthly usage windows instead.
+`dsh-quotaline` embeds a single-line strip in the slot right above the composer, or — with `placement: inline` — one compact reading in the composer tool row, immediately left of the model selector. It follows the session's current model: switch to a DeepSeek Account model and you see the account wallet; switch to a DeepSeek API model and you see that API key's balance; Kimi Code and GLM Coding Plan show their 5h / weekly / monthly usage windows instead.
 
-- **In-flow, not a floating widget** — a full-width strip aligned with the composer, above the input box, always visible.
+- **In-flow, not a floating widget** — a full-width strip aligned with the composer, above the input box, always visible. The `inline` placement condenses the same data into one line beside the model selector, with every reading in the tooltip.
 - **Follows the model** — provider/model changes re-query immediately, so brands never mix.
 - **Read-only local credentials** — no key prompts, no sync, no upload, and `.credentials.yaml` is never rewritten.
 - **Built-in providers + declarative overrides** — DeepSeek, Moonshot/Kimi, Kimi Code, Zhipu, and GLM Coding Plan work out of the box; anything else can be described with an HTTP template in Settings.
@@ -37,6 +37,7 @@ Balance and 5h windows use sky blue, bonus and weekly windows use green, monthly
 | Capability | Details |
 |---|---|
 | **Current model** | Reads the session's `modelSelection` projection and falls back to the profile default for blank sessions. |
+| **Placement** | `dock` (default) keeps the full-width strip above the composer; `inline` shows one compact reading in the composer tool row, beside the model selector. Both read the same status query, and the seat that is not selected renders nothing. While a reading is loading, unconfigured, or failing, the inline seat renders no placeholder; error wording stays in the dock strip and the settings page's **Test**. |
 | **DeepSeek Account** | Uses DSH's OAuth account service; shows the top-up balance and bonus balance. |
 | **DeepSeek API** | `GET {baseURL}/user/balance` with `Authorization: Bearer`, supports CNY and USD. |
 | **Kimi Code** | `GET https://api.kimi.com/coding/v1/usages`; understands both legacy `limits[]` payloads and the newer `usages.limit_5h / limit_7d / limit_month_*` shape. |
@@ -92,11 +93,12 @@ Requires DeepSeek Harness **0.2.2-rc.3 or newer**.
 Open **Settings → Quota Line**:
 
 1. **Refresh interval** — idle refresh interval, 10 to 3600 seconds. Switching models always refreshes immediately.
-2. **Live refresh during runs** — on by default. The strip refreshes after each model response while the agent works; events are throttled to one refresh every 8 seconds. If the event stream is unavailable it falls back to polling (60s while the stream is connected but quiet, 15s when it is down). Turn it off to refresh only on the idle interval (plus manual, model-switch, and visibility triggers).
-3. **Interface language** — follow DSH, or pin the strip and settings page to Chinese or English.
-4. **Limit display** — show limit chips as `used` (default) or `left`; the suffix follows the interface language (`used`/`left` or `已用`/`剩余`). Balance chips are unaffected.
-5. **Built-in templates** — read-only list showing each id, display name, and whether it is experimental.
-6. **Custom templates** — match a provider id (wildcards allowed), choose the display name, method, URL, auth style, credential references, amount path, currency path, and enable it. **Test** performs one real request from the Host and shows the extracted values alongside a response sample.
+2. **Placement** — `dock` (default) keeps the strip above the composer; `inline` condenses it into one reading in the composer tool row, beside the model selector. Percentages follow the **Limit display** choice, and the tooltip and accessible name always list every reading; clicking the reading refreshes it.
+3. **Live refresh during runs** — on by default. The strip refreshes after each model response while the agent works; events are throttled to one refresh every 8 seconds. If the event stream is unavailable it falls back to polling (60s while the stream is connected but quiet, 15s when it is down). Turn it off to refresh only on the idle interval (plus manual, model-switch, and visibility triggers).
+4. **Interface language** — follow DSH, or pin the strip and settings page to Chinese or English.
+5. **Limit display** — show limit chips as `used` (default) or `left`; the suffix follows the interface language (`used`/`left` or `已用`/`剩余`). Balance chips are unaffected.
+6. **Built-in templates** — read-only list showing each id, display name, and whether it is experimental.
+7. **Custom templates** — match a provider id (wildcards allowed), choose the display name, method, URL, auth style, credential references, amount path, currency path, and enable it. **Test** performs one real request from the Host and shows the extracted values alongside a response sample.
 
 Example paths:
 
