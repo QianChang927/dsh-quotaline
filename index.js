@@ -145,6 +145,7 @@ export function defaultSettings() {
     language: 'auto',
     limitMode: 'used',
     liveRefresh: true,
+    placement: 'dock',
     enabled: true,
     providers: {},
   }
@@ -553,6 +554,9 @@ export function sanitizeSettings(input) {
   }
   if (input.limitMode === 'used' || input.limitMode === 'left') {
     settings.limitMode = input.limitMode
+  }
+  if (input.placement === 'dock' || input.placement === 'inline') {
+    settings.placement = input.placement
   }
   if (typeof input.liveRefresh === 'boolean') settings.liveRefresh = input.liveRefresh
   if (typeof input.enabled === 'boolean') settings.enabled = input.enabled
@@ -1035,6 +1039,7 @@ export function apply(ctx) {
       language: settings.language,
       limitMode: settings.limitMode,
       liveRefresh: settings.liveRefresh,
+      placement: settings.placement,
       enabled: settings.enabled,
       builtins: BUILTIN_TEMPLATES.map((template) => ({ ...template })),
       providers: settings.providers,

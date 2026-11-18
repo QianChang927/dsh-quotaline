@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Quota Line",
-    "description": "Shows the current model's balance or quota in a strip above the composer. Reads local DSH credentials read-only — never asks for an API key.",
+    "description": "Shows the current model's balance or quota above the composer, or as one compact reading beside the model selector. Reads local DSH credentials read-only — never asks for an API key.",
     "detail": "docs/DETAIL.md"
   }
 }

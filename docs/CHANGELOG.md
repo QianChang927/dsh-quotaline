@@ -1,5 +1,48 @@
 # Changelog
 
+## [Unreleased]
+
+### 中文
+
+新增可选的「显示位置」设置。默认行为完全不变：仍是在输入框上方显示整条额度条，
+现有配置和升级后的表现一致。把 `placement` 设为 `inline` 后，同样的数据收成输入框
+工具栏里、模型选择器左侧的一行读数：只显示一个读数（余额优先，否则已用比例最高的
+限额窗口），悬停提示与无障碍名称列出全部读数与更新时间，点击立即刷新。
+
+两个位置始终注册、按设置自我过滤，所以改设置即时生效；未选中的位置返回 `null`，
+并通过 `useQuotaStatus` 的 `enabled: false` 跳过请求、轮询与 SSE。
+
+#### 新增
+
+- `settings.placement`：`dock`（默认）或 `inline`，随 `GET | POST /settings` 读写，
+  未知值回退 `dock`；旧 `settings.json` 缺该字段时按默认处理，不需要迁移。
+- 设置页「显示位置」下拉框，以及 `conversation.input.right` 的行内读数组件、中英文
+  文案与无障碍名称。
+- `docs/ARCHITECTURE.md` 补充行内读数的注册、样式与 `enabled` 语义。
+
+### English
+
+Adds an optional **Placement** setting. The default is unchanged: the full-width strip
+above the composer, so existing configurations and upgrades behave exactly as before.
+With `placement: inline`, the same data collapses into one reading in the composer tool
+row, immediately left of the model selector: a single reading (balance first, otherwise
+the most constrained limit window), every reading and the update time in the tooltip and
+accessible name, and a click to refresh.
+
+Both seats stay registered and filter themselves by the setting, so changing it applies
+immediately; the hidden seat returns `null` and skips requests, polling, and SSE through
+`useQuotaStatus`'s `enabled: false`.
+
+#### Added
+
+- `settings.placement`: `dock` (default) or `inline`, read and written through
+  `GET | POST /settings`; unknown values fall back to `dock`, and an older `settings.json`
+  without the field keeps the default, so no migration is needed.
+- A **Placement** select in the settings page, the inline reading component in
+  `conversation.input.right`, its Chinese and English copy, and its accessible name.
+- `docs/ARCHITECTURE.md` notes for the inline registration, its styling, and the
+  `enabled` semantics.
+
 ## [0.3.1] - 2026-11-18
 
 ### 中文

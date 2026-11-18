@@ -154,6 +154,7 @@ GET 返回：
   "refreshSeconds": 60,
   "language": "auto",
   "limitMode": "used",
+  "placement": "dock",
   "liveRefresh": true,
   "enabled": true,
   "builtins": [ ... ],
@@ -161,7 +162,7 @@ GET 返回：
 }
 ```
 
-POST 接受 `{ refreshSeconds, language, limitMode, liveRefresh, enabled, providers }`；`language` 只允许 `auto | zh | en`，`limitMode` 只允许 `used | left`（缺省 `used`），`liveRefresh` 只允许 boolean（缺省 `true`）；`providers.<id>` 必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`。校验失败返回 400 + `{ error: 'invalid-settings', message }`；非 JSON 返回 415。
+POST 接受 `{ refreshSeconds, language, limitMode, placement, liveRefresh, enabled, providers }`；`language` 只允许 `auto | zh | en`，`limitMode` 只允许 `used | left`（缺省 `used`），`placement` 只允许 `dock | inline`（缺省 `dock`，未知值回退 `dock`），`liveRefresh` 只允许 boolean（缺省 `true`）；`providers.<id>` 必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`。校验失败返回 400 + `{ error: 'invalid-settings', message }`；非 JSON 返回 415。
 
 ### 5.3 `POST /probe`
 
@@ -265,7 +266,7 @@ baseURL：
 
 - 路径：`settingsPath(process.env)`，默认 `<DSH_HOME>/dsh-quotaline/settings.json`；`DSH_HOME` 未设置时回退 `os.homedir()/.dsh`，不出现硬编码盘符。
 - 写入：先写临时文件再 rename；Windows 上 rename 被占用时先 unlink 再重试。
-- 内容始终由 `sanitizeSettings()` 归一化后落盘；缺字段回退默认值；`refreshSeconds` 夹在 10–3600 秒；`limitMode` 仅接受 `used | left`；`liveRefresh` 仅接受 boolean，缺省 `true`。
+- 内容始终由 `sanitizeSettings()` 归一化后落盘；缺字段回退默认值；`refreshSeconds` 夹在 10–3600 秒；`limitMode` 仅接受 `used | left`；`placement` 仅接受 `dock | inline`，缺省 `dock`；`liveRefresh` 仅接受 boolean，缺省 `true`。
 - 读取失败或 JSON 损坏时回退默认设置，不阻塞条带。
 
 ## 8. 安全与隐私
@@ -280,6 +281,8 @@ baseURL：
 ## 9. Client UI 约定
 
 - 条带注册：`slots.inject('conversation.input.dock', () => slots.register({ name: 'conversation.input.dock', id: 'dsh-quotaline', order: 30 }, QuotaStrip))`。
+- 行内读数注册：`slots.inject('conversation.input.right', () => slots.register({ name: 'conversation.input.right', id: 'dsh-quotaline', order: 30 }, QuotaBadge))`。两个位置始终注册，各自按 `placement` 自我过滤，因此改设置不需要重新注册 slot；未选中的位置返回 `null`，`useQuotaStatus` 通过 `enabled: false` 跳过请求、轮询与 SSE。
+- 行内读数样式与 composer 工具栏对齐：透明底、`--dsw-radius-sm`、28px 命中区、12px/20px 字、`label-secondary` 文字色，hover 用 `--dsw-alias-interactive-bg-hover`，键盘聚焦用 `--dsw-focus-ring-color`；只显示一个读数（余额优先，否则已用比例最高的窗口），悬停提示与 `aria-label` 列出全部读数与更新时间，点击立即刷新。行内读数在加载中、`no-credential`、`signed-out`、`unsupported` 与 `error` 状态下不渲染占位，错误信息仍由整条模式与设置页承载。
 - 设置页注册：`slots.inject('settings.section', () => slots.register({ name: 'settings.section', id: 'dsh-quotaline', order: 12 }, QuotaSettings))`。
 - 宽度对齐 composer：外层 `calc(100% - 2*var(--dsh-composer-side-clearance) - 4*var(--dsh-composer-dock-inset))`，内层 `maxWidth: calc(var(--dsh-composer-card-max-width) - 4*var(--dsh-composer-dock-inset))`。
 - 单行显示；内容超宽时横向滚动，原生滚动条隐藏，改用 3px 悬浮指示条（滚动时出现，900ms 后淡出）。

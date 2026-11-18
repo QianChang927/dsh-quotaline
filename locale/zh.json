@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "额度条",
-    "description": "在输入框上方显示当前模型的余额或用量窗口，只读访问本地 DSH 凭证，从不索要 API Key。",
+    "description": "在输入框上方显示当前模型的余额或用量窗口，也可收成模型选择器左侧的一行读数；只读访问本地 DSH 凭证，从不索要 API Key。",
     "detail": "docs/DETAIL.zh-CN.md"
   }
 }
